@@ -33,9 +33,16 @@ export const WelcomeView = ({
       <section className="bg-background flex flex-col items-center justify-center text-center">
         <WelcomeImage />
 
-        <p className="text-foreground max-w-prose pt-1 leading-6 font-medium">
-          Chat live with your voice AI agent
-        </p>
+        <h1 className="text-3xl font-bold text-white mt-6">
+      Meet KrishiMitra AI
+      </h1>
+
+      <p className="text-muted-foreground max-w-md pt-3 text-base leading-6">
+  Your personal AI farming assistant.
+  Get guidance on crops, fertilizers, irrigation,
+  weather awareness, and sustainable farming through
+  natural voice conversations.
+     </p>
 
         <Button
           size="lg"
