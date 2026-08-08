@@ -122,3 +122,144 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  .krishi-page {
+    @apply min-h-svh w-full bg-[#f4f8ee] px-4 py-7 text-[#16351e] sm:px-6 sm:py-10;
+    background-image:
+      radial-gradient(circle at 12% 10%, #d7ebbd 0, transparent 26rem),
+      radial-gradient(circle at 90% 90%, #d8ecbf 0, transparent 25rem);
+  }
+  .krishi-welcome-card,
+  .krishi-call-card,
+  .krishi-ended-card {
+    @apply mx-auto w-full max-w-3xl rounded-[2rem] border border-[#d5e5c5] bg-[#fffef9]/95 p-6 text-center shadow-xl shadow-[#5b7f42]/10 sm:p-10;
+  }
+  .krishi-brand {
+    @apply flex items-center justify-center gap-2 text-xl font-extrabold tracking-tight text-[#1f6a36] sm:text-2xl;
+  }
+  .krishi-brand svg {
+    @apply size-7;
+  }
+  .krishi-subtitle {
+    @apply mt-2 text-sm font-medium text-[#55724c] sm:text-base;
+  }
+  .krishi-field-art {
+    @apply mx-auto my-5 flex h-28 max-w-md items-end justify-center gap-8 overflow-hidden rounded-2xl bg-linear-to-b from-[#bde3f7] to-[#eaf5c8] text-5xl;
+  }
+  .krishi-field-art span {
+    animation: krishi-sway 2.5s ease-in-out infinite;
+  }
+  .krishi-welcome-card h1,
+  .krishi-call-card h1,
+  .krishi-ended-card h1 {
+    @apply mx-auto mt-3 max-w-xl text-3xl leading-tight font-extrabold text-[#183d24] sm:text-4xl;
+  }
+  .krishi-description {
+    @apply mx-auto mt-4 max-w-xl text-base leading-7 text-[#527059] sm:text-lg;
+  }
+  .krishi-ready {
+    @apply mt-5 font-semibold text-[#27723a];
+  }
+  .krishi-start-button,
+  .krishi-restart {
+    @apply mt-5 h-14 w-full max-w-md rounded-xl bg-[#287a3d] px-5 text-base font-bold text-white shadow-lg shadow-[#287a3d]/25 hover:bg-[#1e6331] sm:text-lg;
+  }
+  .krishi-support-grid {
+    @apply mt-7 grid grid-cols-2 gap-3 sm:grid-cols-4;
+  }
+  .krishi-support-card {
+    @apply flex min-h-28 flex-col items-center justify-center rounded-xl bg-[#edf6df] p-2 text-[#285c35];
+  }
+  .krishi-support-card span {
+    @apply text-2xl;
+  }
+  .krishi-support-card strong {
+    @apply mt-1 text-xs sm:text-sm;
+  }
+  .krishi-support-card small {
+    @apply mt-1 text-[11px] text-[#59745d];
+  }
+  .krishi-questions {
+    @apply mt-6 flex flex-col gap-2 rounded-xl border border-[#d7e9c7] bg-[#f8fbed] p-4 text-left text-sm text-[#42634a];
+  }
+  .krishi-questions span {
+    @apply rounded-lg bg-white px-3 py-2;
+  }
+  .krishi-connecting,
+  .krishi-error {
+    @apply mx-auto mt-5 flex max-w-md items-center gap-3 rounded-xl p-4 text-left text-sm leading-6;
+  }
+  .krishi-connecting {
+    @apply bg-[#edf6df] text-[#315d3c];
+  }
+  .krishi-error {
+    @apply block border border-[#d89d77] bg-[#fff4ec] text-[#713c23];
+  }
+  .krishi-error p {
+    @apply mt-1;
+  }
+  .krishi-spinner {
+    @apply size-6 shrink-0 rounded-full border-4 border-[#9ccc72] border-t-[#287a3d];
+    animation: krishi-spin 0.8s linear infinite;
+  }
+  .krishi-call-page {
+    @apply flex items-center;
+  }
+  .krishi-call-card {
+    @apply max-w-2xl;
+  }
+  .krishi-orb {
+    @apply mx-auto mt-7 grid size-24 place-items-center rounded-full bg-[#e2f2ce] text-[#287a3d] shadow-[0_0_0_13px_rgba(111,164,70,.12)];
+    animation: krishi-pulse 1.8s ease-in-out infinite;
+  }
+  .krishi-orb.is-speaking {
+    @apply bg-[#fff0bf] text-[#9a6614] shadow-[0_0_0_13px_rgba(220,166,46,.16)];
+  }
+  .krishi-orb svg {
+    @apply size-10;
+  }
+  .krishi-wave {
+    @apply mx-auto mt-4 h-24 max-w-sm overflow-hidden;
+  }
+  .krishi-wave > * {
+    @apply -mt-25 scale-50;
+  }
+  .krishi-live-label {
+    @apply mt-1 text-sm font-bold text-[#3e7548];
+  }
+  .krishi-tip {
+    @apply mt-4 text-sm text-[#5a755d];
+  }
+  .krishi-end-button {
+    @apply mt-6 h-12 rounded-xl border-[#d29b90] text-[#963e32] hover:bg-[#fff3ef];
+  }
+  .krishi-ended-card {
+    @apply max-w-xl py-14;
+  }
+  .krishi-ended-card > span {
+    @apply text-6xl;
+  }
+  .krishi-ended-card p {
+    @apply mt-3 text-[#53715a];
+  }
+  .krishi-restart {
+    @apply inline-flex items-center justify-center;
+  }
+}
+@keyframes krishi-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes krishi-pulse {
+  50% {
+    transform: scale(1.06);
+    box-shadow: 0 0 0 22px rgb(111 164 70 / 0.08);
+  }
+}
+@keyframes krishi-sway {
+  50% {
+    transform: translateY(-6px) rotate(4deg);
+  }
+}
