@@ -1,14 +1,14 @@
 'use client';
 
-import { useTheme } from 'next-themes';
+import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSessionContext } from '@livekit/components-react';
 import type { AppConfig } from '@/app-config';
-import { AgentSessionView_01 } from '@/components/agents-ui/blocks/agent-session-view-01';
+import { FarmSessionView } from '@/components/app/farm-session-view';
 import { WelcomeView } from '@/components/app/welcome-view';
 
 const MotionWelcomeView = motion.create(WelcomeView);
-const MotionSessionView = motion.create(AgentSessionView_01);
+const MotionSessionView = motion.create(FarmSessionView);
 
 const VIEW_MOTION_PROPS = {
   variants: {
@@ -33,43 +33,62 @@ interface ViewControllerProps {
 }
 
 export function ViewController({ appConfig }: ViewControllerProps) {
-  const { isConnected, start } = useSessionContext();
-  const { resolvedTheme } = useTheme();
+  const { isConnected, connectionState, start } = useSessionContext();
+  const [hasEnded, setHasEnded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const isConnecting = connectionState === 'connecting';
+
+  const startCall = async () => {
+    setHasEnded(false);
+    setError(null);
+    try {
+      await start({ tracks: { microphone: { enabled: true } } });
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : 'We could not access your microphone.';
+      setError(message);
+    }
+  };
 
   return (
     <AnimatePresence mode="wait">
       {/* Welcome view */}
-      {!isConnected && (
+      {!isConnected && !hasEnded && (
         <MotionWelcomeView
           key="welcome"
           {...VIEW_MOTION_PROPS}
           startButtonText={appConfig.startButtonText}
-          onStartCall={start}
+          onStartCall={startCall}
+          isConnecting={isConnecting}
+          error={error}
         />
+      )}
+      {!isConnected && hasEnded && (
+        <motion.section
+          key="ended"
+          {...VIEW_MOTION_PROPS}
+          className="farm-shell flex min-h-svh items-center justify-center px-4 text-center"
+        >
+          <div className="farm-card w-full max-w-lg p-8">
+            <p className="text-5xl">🌾</p>
+            <h1 className="mt-5 text-3xl font-bold">Call ended / बातचीत समाप्त</h1>
+            <p className="text-muted-foreground mt-3">Thank you for talking with KrishiMitra AI.</p>
+            <button
+              type="button"
+              onClick={startCall}
+              className="bg-primary text-primary-foreground mt-7 min-h-14 w-full rounded-2xl px-6 text-base font-bold shadow-lg"
+            >
+              🔄 Start Again / फिर से शुरू करें
+            </button>
+          </div>
+        </motion.section>
       )}
       {/* Session view */}
       {isConnected && (
         <MotionSessionView
           key="session-view"
           {...VIEW_MOTION_PROPS}
-          supportsChatInput={appConfig.supportsChatInput}
-          supportsVideoInput={appConfig.supportsVideoInput}
-          supportsScreenShare={appConfig.supportsScreenShare}
-          isPreConnectBufferEnabled={appConfig.isPreConnectBufferEnabled}
-          audioVisualizerType={appConfig.audioVisualizerType}
-          audioVisualizerColor={
-            resolvedTheme === 'dark'
-              ? appConfig.audioVisualizerColorDark
-              : appConfig.audioVisualizerColor
-          }
-          audioVisualizerColorShift={appConfig.audioVisualizerColorShift}
-          audioVisualizerBarCount={appConfig.audioVisualizerBarCount}
-          audioVisualizerGridRowCount={appConfig.audioVisualizerGridRowCount}
-          audioVisualizerGridColumnCount={appConfig.audioVisualizerGridColumnCount}
-          audioVisualizerRadialBarCount={appConfig.audioVisualizerRadialBarCount}
-          audioVisualizerRadialRadius={appConfig.audioVisualizerRadialRadius}
-          audioVisualizerWaveLineWidth={appConfig.audioVisualizerWaveLineWidth}
-          className="fixed inset-0"
+          onEnd={() => setHasEnded(true)}
         />
       )}
     </AnimatePresence>
