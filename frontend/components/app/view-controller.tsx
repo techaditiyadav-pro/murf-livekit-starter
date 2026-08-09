@@ -50,6 +50,20 @@ export function ViewController({ appConfig }: ViewControllerProps) {
     }
   };
 
+  const startChat = async () => {
+    setHasEnded(false);
+    setError(null);
+    try {
+      await start({ tracks: { microphone: { enabled: false } } });
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error
+          ? caughtError.message
+          : 'We could not connect to KrishiMitra AI.';
+      setError(message);
+    }
+  };
+
   return (
     <AnimatePresence mode="wait">
       {/* Welcome view */}
@@ -59,6 +73,7 @@ export function ViewController({ appConfig }: ViewControllerProps) {
           {...VIEW_MOTION_PROPS}
           startButtonText={appConfig.startButtonText}
           onStartCall={startCall}
+          onStartChat={startChat}
           isConnecting={isConnecting}
           error={error}
         />

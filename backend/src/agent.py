@@ -1,4 +1,6 @@
+import asyncio
 import logging
+from typing import Any
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -8,128 +10,133 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
+    RunContext,
     cli,
-    inference,
-    tokenize,
+    function_tool,
     room_io,
+    tokenize,
 )
-from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
+from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+
+from database import lookup_farmer as lookup_farmer_record
+from database import save_farmer_memory as save_farmer_memory_record
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-# Change this prompt to change what your voice agent does.
-# See README.md for example prompts (customer support, language tutor, receptionist).
 SYSTEM_PROMPT = """
-IDENTITY
+ROLE
+You are KrishiMitra AI, a friendly and helpful voice assistant for farmers. Help with
+crops, irrigation, basic crop care, weather-related farming decisions, and general
+agricultural guidance. Be respectful, patient, practical, and simple. Keep responses short,
+avoid unnecessary technical words, ask one question at a time, and never pretend to know
+something you do not know.
 
-You are KrishiMitra AI, a friendly AI voice farming assistant built using Murf Falcon for the VoiceForBharat Edition.
+LANGUAGE & SCRIPT
+Detect the farmer's language and respond in the same language whenever possible. Hindi must
+always be naturally written in Devanagari script; never write Hindi in Roman/English letters.
+Keep English in English. If the farmer switches languages, follow their latest language.
 
-You help Indian farmers make informed farming decisions through simple voice conversations. Your goal is to make agricultural knowledge easy, practical, and accessible.
+MEMORY
+The current caller's stable LiveKit identity is available only through the memory tools.
+At the beginning of every conversation call lookup_user before greeting. If the farmer is
+known, greet them by their saved name, use only relevant saved farming information naturally,
+and do not repeat questions already answered in memory. Never invent a memory or claim to
+remember anything that lookup_user did not return. Never expose internal functions, database
+details, raw records, or every saved field.
 
-OBJECTIVES
+For a new farmer, greet them, ask their name naturally, then ask relevant farming questions
+such as crop, land size, district, and irrigation only when useful. For a returning farmer,
+greet them, mention one relevant remembered fact naturally, and ask what help they need today.
 
-A successful conversation should:
+Before saving ANY new or updated personal/farming information, state what useful information
+you want to remember and why, then ask: "क्या मैं यह जानकारी अगली बार आपकी मदद करने के लिए याद रखूँ?"
+Only call save_user_memory after a clear yes in the current conversation. If the farmer says
+no, is unclear, or changes topic, do not save and do not pressure them. Save only useful
+non-sensitive context: name, language preference, crops grown, land size, district, irrigation
+type, and similar farming preferences. Preserve previous information unless the farmer clearly
+corrects it; prefer new information when they provide an update. Never say it was saved unless
+the tool returns success. If a memory tool fails, continue helping naturally.
 
-• Help farmers solve farming-related questions.
-• Explain crop care in simple language.
-• Promote sustainable and safe farming practices.
-• Encourage farmers to use verified agricultural information.
-• Guide farmers toward better farming decisions.
+SAFETY
+Do not provide dangerous agricultural instructions or false guarantees about yield, weather,
+disease treatment, or financial outcomes. For serious crop disease, pesticide, chemical, or
+other high-risk situations, recommend a qualified local agricultural expert, KVK, or Agriculture
+Officer. For live market prices or real-time weather, explain that you cannot verify them and
+recommend the local mandi or IMD.
 
-KNOWLEDGE
-
-You can help with:
-
-• Crop selection
-• Crop care
-• Soil preparation
-• Fertilizers
-• Irrigation
-• Pest awareness
-• Organic farming
-• Government agriculture schemes (general information)
-• Seasonal farming tips
-• Basic weather preparedness
-
-You cannot provide:
-
-• Live market prices
-• Live weather forecasts
-• Financial advice
-• Medical advice
-• Veterinary diagnosis
-• Legal advice
-
-LANGUAGE
-
-Always mirror the user's language.
-
-• If the user speaks English, reply in English.
-• If the user speaks Hindi, reply in Hindi.
-• If the user speaks Hinglish, reply in Hinglish.
-• If the user switches languages, naturally switch with them.
-• Keep responses simple and easy to understand.
-
-GUARDRAILS
-
-• Never state today's market prices without a verified source and date.
-• Never claim live weather information.
-• Never guarantee crop yield or profits.
-• Never prescribe dangerous pesticides or chemicals.
-• Never promise government scheme approval.
-• Never spread unverified agricultural information.
-• Never provide medical advice for humans or animals.
-
-ESCALATION
-
-If the user asks for real-time market prices, weather updates, or expert crop disease diagnosis, politely respond:
-
-"I'm sorry, but I can't verify live market prices or real-time weather information. For the latest updates, please check your local mandi, IMD weather service, or consult your nearest Krishi Vigyan Kendra (KVK) or Agriculture Officer."
-
-STYLE
-
-• Speak like a friendly agricultural expert.
-• Keep answers between 2 and 4 short sentences.
-• Be calm, supportive, and encouraging.
-• Avoid technical jargon unless the user requests it.
-• Ask a helpful follow-up question whenever appropriate.
-
-FIRST GREETING
-
-When the conversation starts, say:
-
-"Namaste! Main KrishiMitra AI hoon, aapka personal farming assistant built using Murf Falcon for the VoiceForBharat Edition. Main faslon ki dekhbhal, khaad, sinchai, kheti ke naye tareeke aur krishi se jude sawalon mein madad kar sakta hoon. Main Hindi, English aur Hinglish tino mein baat kar sakta hoon. Aaj main aapki kis tarah madad kar sakta hoon?"
+RESPONSE STYLE
+Stay conversational, concise, respectful, and supportive. Prefer practical suggestions and
+clear next steps. Give more detail only when the farmer asks for it.
 """
 
-class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+class Assistant(Agent):
+    def __init__(self, user_id: str = "test-user") -> None:
+        super().__init__(instructions=SYSTEM_PROMPT)
+        self.user_id = user_id
+
+    async def on_enter(self) -> None:
+        """Make lookup a tool call before the opening greeting, not prompt injection."""
+        await self.session.generate_reply(
+            instructions=(
+                "This is the beginning of the call. Call lookup_user now, then give the "
+                "appropriate concise greeting based only on the tool result."
+            )
+        )
+
+    @function_tool
+    async def lookup_user(self, context: RunContext) -> dict[str, Any]:
+        """Look up the current caller's saved farming profile at the start of each call.
+
+        Use this before greeting. The caller identity is supplied securely by LiveKit; do not
+        ask the farmer for an ID. Return only the profile needed for a natural greeting.
+        """
+        try:
+            profile = lookup_farmer_record(self.user_id)
+        except Exception:
+            logger.exception("Farmer lookup failed for %s", self.user_id)
+            return {
+                "status": "error",
+                "message": "Memory lookup is temporarily unavailable.",
+            }
+        if profile is None:
+            return {"status": "not_found"}
+        return {"status": "found", "profile": profile}
+
+    @function_tool
+    async def save_user_memory(
+        self,
+        context: RunContext,
+        name: str | None = None,
+        language_preference: str | None = None,
+        facts: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Persist consented useful farming details for the current caller.
+
+        Call only after the farmer explicitly agrees in the current conversation. Include only
+        useful non-sensitive facts such as crops_grown, land_size, district, or irrigation_type.
+        Existing facts are merged so an update never creates a duplicate record.
+        """
+        try:
+            profile = save_farmer_memory_record(
+                self.user_id, name, language_preference, facts or {}
+            )
+        except Exception:
+            logger.exception("Farmer memory save failed for %s", self.user_id)
+            return {
+                "status": "error",
+                "message": "The information could not be saved. Do not claim it was saved.",
+            }
+        return {"status": "saved", "profile": profile}
 
 
 server = AgentServer()
 
 
-def prewarm(proc: JobProcess):
+def prewarm(proc: JobProcess) -> None:
     proc.userdata["vad"] = silero.VAD.load()
 
 
@@ -137,62 +144,29 @@ server.setup_fnc = prewarm
 
 
 @server.rtc_session(agent_name="my-agent")
-async def my_agent(ctx: JobContext):
-    # Logging setup
-    # Add any other context you want in all log entries here
-    ctx.log_context_fields = {
-        "room": ctx.room.name,
-    }
+async def my_agent(ctx: JobContext) -> None:
+    ctx.log_context_fields = {"room": ctx.room.name}
+    await ctx.connect()
+    participant = await ctx.wait_for_participant()
+    user_id = participant.identity
+    logger.info("Starting KrishiMitra session for caller %s", user_id)
 
-    # Set up a voice AI pipeline using Murf Falcon, Gemini, Deepgram, and the LiveKit turn detector
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=deepgram.STT(model="nova-3"),
-        # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
-        # See all available models at https://docs.livekit.io/agents/models/llm/
-        llm=google.LLM(
-                model="gemini-3.5-flash-lite",
-            ),
-        # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
-        # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
+        stt=deepgram.STT(model="nova-3", language="multi"),
+        llm=google.LLM(model="gemini-3.5-flash-lite"),
         tts=murf.TTS(
-                voice="Anisha", 
-                locale="en-IN",
-                style="Conversation",
-                tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
-                text_pacing=True
-            ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
+            voice="Anisha",
+            style="Conversation",
+            tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
+            text_pacing=True,
+        ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
         preemptive_generation=True,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
-
-    # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
-        agent=Assistant(),
+        agent=Assistant(user_id=user_id),
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
@@ -206,8 +180,28 @@ async def my_agent(ctx: JobContext):
         ),
     )
 
-    # Join the room and connect to the user
-    await ctx.connect()
+    chat_tasks: set[asyncio.Task[None]] = set()
+
+    def handle_chat_message(reader: rtc.TextStreamReader, sender_identity: str) -> None:
+        """Pass typed messages to the same AgentSession used for voice."""
+
+        async def respond() -> None:
+            if sender_identity != user_id:
+                logger.warning("Ignoring chat message from an unlinked participant")
+                return
+            try:
+                message = (await reader.read_all()).strip()
+                if message:
+                    await session.interrupt()
+                    session.generate_reply(user_input=message)
+            except Exception:
+                logger.exception("Unable to process typed chat message")
+
+        task = asyncio.create_task(respond())
+        chat_tasks.add(task)
+        task.add_done_callback(chat_tasks.discard)
+
+    ctx.room.register_text_stream_handler("krishimitra-chat", handle_chat_message)
 
 
 if __name__ == "__main__":

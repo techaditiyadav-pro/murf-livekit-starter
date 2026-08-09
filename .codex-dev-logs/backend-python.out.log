@@ -1,0 +1,1581 @@
+    13:16:42.979 DEBUG… asyncio            Using proactor: IocpProactor  
+    13:16:43.022 DEV  … livekit.agents     Watching C:\Users\Aditya            
+                                           Yadav\Desktop\numpy\murf-livekit-…  
+    13:16:54.936 DEBUG… asyncio            Using proactor: IocpProactor  
+    13:16:54.976 INFO … livekit.agents     starting worker  
+                                         {"version": "1.4.5", "rtc-version": 
+"1.1.2"}
+    13:16:55.000 INFO … livekit.agents     starting inference executor  
+    13:16:55.037 INFO … livekit.agents     initializing process  
+                                         {"pid": 13164, "inference": true}
+    13:17:17.751 INFO … livekit.agents     process initialized  
+                                         {"pid": 13164, "inference": true, 
+"elapsed_time": 22.69}
+    13:17:17.765 INFO … livekit.agents     HTTP server listening on :1540  
+    13:17:17.940 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 0s                      
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:17:18.148 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 2s                      
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:17:20.200 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 4s                      
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:17:24.254 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 6s                      
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:17:30.444 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 8s                      
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:17:38.513 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:17:48.664 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:18:00.196 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:18:10.343 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:18:20.526 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:18:30.715 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:18:40.886 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:18:51.026 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:19:01.312 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:19:11.469 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:19:21.633 WARNI… livekit.agents     failed to connect to livekit,       
+                                           retrying in 10s                     
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1298, in _wrap_create_connection
+    sock = await aiohappyeyeballs.start_connection(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 127, in start_connection
+    raise first_exception
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\_staggered.py", line 132, in run_one_coro
+    result = await coro_fn()
+             ^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohap
+pyeyeballs\impl.py", line 208, in _connect_sock
+    await loop.sock_connect(sock, address)
+  File "C:\Python313\Lib\asyncio\proactor_events.py", line 726, in sock_connect
+    return await self._proactor.connect(sock, address)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 804, in _poll
+    value = callback(transferred, key, ov)
+  File "C:\Python313\Lib\asyncio\windows_events.py", line 600, in 
+finish_connect
+    ov.getresult()
+    ~~~~~~~~~~~~^^
+PermissionError: [WinError 5] Access is denied
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 968, in _connection_task
+    ws = await self._http_session.ws_connect(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<6 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 1076, in _ws_connect
+    resp = await self.request(
+           ^^^^^^^^^^^^^^^^^^^
+    ...<11 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 779, in _request
+    resp = await handler(req)
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\client.py", line 734, in _connect_and_send_request
+    conn = await self._connector.connect(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        req, traces=traces, timeout=real_timeout
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 672, in connect
+    proto = await self._create_connection(req, traces, timeout)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1239, in _create_connection
+    _, proto = await self._create_direct_connection(req, traces, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1611, in _create_direct_connection
+    raise last_exc
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1580, in _create_direct_connection
+    transp, proto = await self._wrap_create_connection(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<7 lines>...
+    )
+    ^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\aiohtt
+p\connector.py", line 1321, in _wrap_create_connection
+    raise client_error(req.connection_key, exc) from exc
+aiohttp.client_exceptions.ClientConnectorError: Cannot connect to host 
+adiitii-hf1pruv1.livekit.cloud:443 ssl:default [Access is denied]
+
+    13:19:31.794 ERROR… livekit.agents     Error in _connection_task  
+Traceback (most recent call last):
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\utils\log.py", line 17, in async_fn_logs
+    return await fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Aditya 
+Yadav\Desktop\numpy\murf-livekit-starter\backend\.venv\Lib\site-packages\liveki
+t\agents\worker.py", line 1018, in _connection_task
+    raise RuntimeError(
+        f"failed to connect to livekit after {retry_count} attempts",
+    ) from None
+RuntimeError: failed to connect to livekit after 16 attempts
+

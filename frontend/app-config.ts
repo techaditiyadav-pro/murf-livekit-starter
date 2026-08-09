@@ -37,7 +37,7 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   pageTitle: 'KrishiMitra AI | Your Farming Voice Assistant',
   pageDescription: 'A voice agent powered by Murf Falcon — the fastest TTS API',
 
-  supportsChatInput: false,
+  supportsChatInput: true,
   supportsVideoInput: false,
   supportsScreenShare: false,
   isPreConnectBufferEnabled: true,

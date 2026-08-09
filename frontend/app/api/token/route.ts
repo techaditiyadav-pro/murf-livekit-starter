@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { AccessToken, type AccessTokenOptions, type VideoGrant } from 'livekit-server-sdk';
 import { RoomConfiguration } from '@livekit/protocol';
 
@@ -14,6 +15,7 @@ const API_KEY = process.env.LIVEKIT_API_KEY;
 const API_SECRET = process.env.LIVEKIT_API_SECRET;
 const LIVEKIT_URL = process.env.LIVEKIT_URL;
 const AGENT_NAME = process.env.AGENT_NAME;
+const FARMER_ID_COOKIE = 'krishimitra_farmer_id';
 
 // don't cache the results
 export const revalidate = 0;
@@ -46,7 +48,11 @@ export async function POST(req: Request) {
       
     // Generate participant token
     const participantName = 'user';
-    const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+    const cookieStore = await cookies();
+    let participantIdentity = cookieStore.get(FARMER_ID_COOKIE)?.value;
+    if (!participantIdentity) {
+      participantIdentity = `farmer_${crypto.randomUUID()}`;
+    }
     const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
 
     const participantToken = await createParticipantToken(
@@ -65,7 +71,16 @@ export async function POST(req: Request) {
     const headers = new Headers({
       'Cache-Control': 'no-store',
     });
-    return NextResponse.json(data, { headers });
+    const response = NextResponse.json(data, { headers });
+    if (!cookieStore.has(FARMER_ID_COOKIE)) {
+      response.cookies.set(FARMER_ID_COOKIE, participantIdentity, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365,
+        path: '/',
+      });
+    }
+    return response;
   } catch (error) {
     if (error instanceof Error) {
       console.error(error);

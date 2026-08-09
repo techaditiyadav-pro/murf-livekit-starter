@@ -1,9 +1,10 @@
-import { Sprout } from 'lucide-react';
+import { MessageCircle, Mic, Sprout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 interface WelcomeViewProps {
   startButtonText: string;
   onStartCall: () => void;
+  onStartChat: () => void;
   isConnecting?: boolean;
   error?: string | null;
 }
@@ -11,6 +12,7 @@ interface WelcomeViewProps {
 export const WelcomeView = ({
   startButtonText,
   onStartCall,
+  onStartChat,
   isConnecting = false,
   error,
   ref,
@@ -64,7 +66,15 @@ export const WelcomeView = ({
               onClick={onStartCall}
               className="mt-8 min-h-14 w-full max-w-md rounded-2xl text-base font-bold shadow-lg sm:w-96"
             >
-              {startButtonText}
+              <Mic /> {startButtonText}
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={onStartChat}
+              className="mt-3 min-h-14 w-full max-w-md rounded-2xl text-base font-bold sm:w-96"
+            >
+              <MessageCircle /> 💬 Chat / लिखकर पूछें
             </Button>
             <p className="text-primary mt-4 text-sm font-semibold">● Ready to help you</p>
           </>

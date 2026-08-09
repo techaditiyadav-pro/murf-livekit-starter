@@ -1,0 +1,8 @@
+uv : The term 'uv' is not recognized as the name of a cmdlet, function, script file, or operable program. Check the 
+spelling of the name, or if a path was included, verify that the path is correct and try again.
+At line:1 char:82
++ ... \Aditya Yadav\Desktop\numpy\murf-livekit-starter\backend'; uv run pyt ...
++                                                                ~~
+    + CategoryInfo          : ObjectNotFound: (uv:String) [], CommandNotFoundException
+    + FullyQualifiedErrorId : CommandNotFoundException
+ 
