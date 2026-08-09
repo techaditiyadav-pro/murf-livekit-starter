@@ -1,4 +1,6 @@
+import json
 import logging
+from typing import Any
 
 from dotenv import load_dotenv
 from livekit import rtc
@@ -8,123 +10,196 @@ from livekit.agents import (
     AgentSession,
     JobContext,
     JobProcess,
+    RunContext,
     cli,
-    inference,
-    tokenize,
+    function_tool,
     room_io,
+    tokenize,
 )
-from livekit.plugins import murf, silero, google, deepgram, noise_cancellation
+from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
+
+from database import FarmerRepository
+
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
-# Change this prompt to change what your voice agent does.
-# See README.md for example prompts (customer support, language tutor, receptionist).
+
 SYSTEM_PROMPT = """
-IDENTITY
+You are KrishiMitra AI, a friendly and intelligent Indian farming assistant.
 
-You are KrishiMitra AI, a friendly AI voice farming assistant built using Murf Falcon for the VoiceForBharat Edition.
+Help farmers with crop care, irrigation, crop planning, soil preparation,
+fertilizers, pest awareness, organic farming, seasonal farming, and general
+agricultural guidance.
 
-You help Indian farmers make informed farming decisions through simple voice conversations. Your goal is to make agricultural knowledge easy, practical, and accessible.
+Always respond in the farmer's language.
+If the farmer speaks Hindi, use Devanagari script.
+If the farmer speaks English, respond in English.
+If the farmer uses Hinglish, use natural Hindi + English.
 
-OBJECTIVES
+Keep voice responses short, natural, friendly and practical.
 
-A successful conversation should:
+You have persistent farmer memory through:
+- lookup_farmer()
+- save_farmer_memory()
 
-• Help farmers solve farming-related questions.
-• Explain crop care in simple language.
-• Promote sustainable and safe farming practices.
-• Encourage farmers to use verified agricultural information.
-• Guide farmers toward better farming decisions.
+Never ask the farmer for an internal user ID.
+Never invent an ID.
+Never expose raw JSON or database details.
 
-KNOWLEDGE
+Only save information after the farmer clearly gives permission.
+Never claim information was saved unless the save tool succeeds.
 
-You can help with:
+Do not claim live weather, live mandi prices, government eligibility,
+crop diagnosis, medical advice, veterinary diagnosis, legal advice, or
+financial advice without a verified source.
 
-• Crop selection
-• Crop care
-• Soil preparation
-• Fertilizers
-• Irrigation
-• Pest awareness
-• Organic farming
-• Government agriculture schemes (general information)
-• Seasonal farming tips
-• Basic weather preparedness
+For live or local information, recommend official sources such as IMD,
+local Mandi, Krishi Vigyan Kendra, or Agriculture Officer.
 
-You cannot provide:
-
-• Live market prices
-• Live weather forecasts
-• Financial advice
-• Medical advice
-• Veterinary diagnosis
-• Legal advice
-
-LANGUAGE
-
-Always mirror the user's language.
-
-• If the user speaks English, reply in English.
-• If the user speaks Hindi, reply in Hindi.
-• If the user speaks Hinglish, reply in Hinglish.
-• If the user switches languages, naturally switch with them.
-• Keep responses simple and easy to understand.
-
-GUARDRAILS
-
-• Never state today's market prices without a verified source and date.
-• Never claim live weather information.
-• Never guarantee crop yield or profits.
-• Never prescribe dangerous pesticides or chemicals.
-• Never promise government scheme approval.
-• Never spread unverified agricultural information.
-• Never provide medical advice for humans or animals.
-
-ESCALATION
-
-If the user asks for real-time market prices, weather updates, or expert crop disease diagnosis, politely respond:
-
-"I'm sorry, but I can't verify live market prices or real-time weather information. For the latest updates, please check your local mandi, IMD weather service, or consult your nearest Krishi Vigyan Kendra (KVK) or Agriculture Officer."
-
-STYLE
-
-• Speak like a friendly agricultural expert.
-• Keep answers between 2 and 4 short sentences.
-• Be calm, supportive, and encouraging.
-• Avoid technical jargon unless the user requests it.
-• Ask a helpful follow-up question whenever appropriate.
-
-FIRST GREETING
-
-When the conversation starts, say:
-
-"Namaste! Main KrishiMitra AI hoon, aapka personal farming assistant built using Murf Falcon for the VoiceForBharat Edition. Main faslon ki dekhbhal, khaad, sinchai, kheti ke naye tareeke aur krishi se jude sawalon mein madad kar sakta hoon. Main Hindi, English aur Hinglish tino mein baat kar sakta hoon. Aaj main aapki kis tarah madad kar sakta hoon?"
+Be respectful, patient, encouraging and farmer-friendly.
 """
 
 
 class Assistant(Agent):
-    def __init__(self) -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
+    def __init__(
+        self,
+        user_id: str,
+        repository: FarmerRepository,
+        farmer_memory: dict[str, Any] | None = None,
+    ) -> None:
+        self.user_id = user_id
+        self.repository = repository
+        self.farmer_memory = farmer_memory
 
-    # To add tools, use the @function_tool decorator.
-    # Here's an example that adds a simple weather tool.
-    # You also have to add `from livekit.agents import function_tool, RunContext` to the top of this file
-    # @function_tool
-    # async def lookup_weather(self, context: RunContext, location: str):
-    #     """Use this tool to look up current weather information in the given location.
-    #
-    #     If the location is not supported by the weather service, the tool will indicate this. You must tell the user the location's weather is unavailable.
-    #
-    #     Args:
-    #         location: The location to look up weather information for (e.g. city name)
-    #     """
-    #
-    #     logger.info(f"Looking up weather for {location}")
-    #
-    #     return "sunny with a temperature of 70 degrees."
+        memory_context = ""
+
+        if farmer_memory:
+            memory_context = (
+                "\n\nFARMER MEMORY FOR THIS SESSION:\n"
+                + json.dumps(
+                    farmer_memory,
+                    ensure_ascii=False,
+                    default=str,
+                )
+                + "\nUse this memory naturally when relevant. "
+                "Do not reveal raw JSON or internal database details."
+            )
+        else:
+            memory_context = (
+                "\n\nNO PREVIOUS FARMER MEMORY WAS FOUND. "
+                "Treat this as a new farmer."
+            )
+
+        super().__init__(
+            instructions=SYSTEM_PROMPT + memory_context
+        )
+
+    async def on_enter(self) -> None:
+        """
+        Do NOT call lookup_farmer() here.
+
+        The initial farmer memory is loaded directly from the database
+        before the AgentSession starts. This avoids Gemini function-call
+        ordering errors before a user turn exists.
+        """
+
+        if self.farmer_memory:
+            name = self.farmer_memory.get("name")
+
+            if name:
+                greeting = (
+                    f"नमस्ते {name} जी! आपका फिर से स्वागत है। "
+                    "आज मैं आपकी खेती से जुड़ी किस समस्या में मदद कर सकता हूँ?"
+                )
+            else:
+                greeting = (
+                    "नमस्ते! आपका फिर से स्वागत है। "
+                    "आज मैं आपकी खेती से जुड़ी किस समस्या में मदद कर सकता हूँ?"
+                )
+        else:
+            greeting = (
+                "नमस्ते! मैं KrishiMitra AI हूँ, आपका डिजिटल खेती सहायक। "
+                "मैं फसल, सिंचाई, मिट्टी, खाद और खेती से जुड़ी सामान्य जानकारी "
+                "में आपकी मदद कर सकता हूँ। आज आप किस बारे में जानना चाहते हैं?"
+            )
+
+        await self.session.generate_reply(
+            instructions=(
+                "Give this short opening greeting. "
+                "Do not call any tools for the opening greeting.\n\n"
+                + greeting
+            )
+        )
+
+    @function_tool
+    async def lookup_farmer(
+        self,
+        context: RunContext,
+    ) -> str:
+        """Look up persistent memory for the current farmer."""
+
+        logger.info("Looking up farmer memory for user_id=%s", self.user_id)
+
+        try:
+            farmer = self.repository.lookup_farmer(self.user_id)
+        except Exception:
+            logger.exception("Farmer memory lookup failed")
+            return (
+                "Memory lookup failed. Continue normally without assuming "
+                "previous farmer information."
+            )
+
+        if farmer is None:
+            return (
+                "No farmer profile found. Treat this as a new farmer."
+            )
+
+        return json.dumps(
+            farmer,
+            ensure_ascii=False,
+            default=str,
+        )
+
+    @function_tool
+    async def save_farmer_memory(
+        self,
+        context: RunContext,
+        name: str | None = None,
+        language_preference: str | None = None,
+        facts: dict[str, Any] | None = None,
+    ) -> str:
+        """
+        Save farmer information only after explicit consent.
+        """
+
+        logger.info("Saving farmer memory for user_id=%s", self.user_id)
+
+        try:
+            farmer = self.repository.save_farmer_memory(
+                self.user_id,
+                name,
+                language_preference,
+                facts or {},
+            )
+        except Exception:
+            logger.exception("Farmer memory save failed")
+            return (
+                "Memory save failed. Do not claim that the information "
+                "was saved."
+            )
+
+        if isinstance(farmer, dict):
+            saved_fields = list(farmer.get("facts", {}).keys())
+            if saved_fields:
+                logger.info(
+                    "Farmer memory saved: %s",
+                    ", ".join(saved_fields),
+                )
+
+        return "The farmer information was saved successfully."
 
 
 server = AgentServer()
@@ -139,61 +214,72 @@ server.setup_fnc = prewarm
 
 @server.rtc_session(agent_name="my-agent")
 async def my_agent(ctx: JobContext):
-    # Logging setup
-    # Add any other context you want in all log entries here
     ctx.log_context_fields = {
         "room": ctx.room.name,
     }
 
-    # Set up a voice AI pipeline using Murf Falcon, Gemini, Deepgram, and the LiveKit turn detector
+    await ctx.connect()
+
+    participants = list(ctx.room.remote_participants.values())
+
+    if participants:
+        user_id = participants[0].identity
+        logger.info("Farmer identity detected: %s", user_id)
+    else:
+        user_id = ctx.room.name
+        logger.warning(
+            "No remote participant found. Using room name as fallback: %s",
+            user_id,
+        )
+
+    repository = FarmerRepository()
+
+    farmer_memory = None
+
+    try:
+        farmer_memory = repository.lookup_farmer(user_id)
+
+        if farmer_memory:
+            logger.info("Existing farmer memory found.")
+        else:
+            logger.info("No previous farmer memory found.")
+
+    except Exception:
+        logger.exception(
+            "Initial farmer memory lookup failed. "
+            "Starting without memory."
+        )
+
     session = AgentSession(
-        # Speech-to-text (STT) is your agent's ears, turning the user's speech into text that the LLM can understand
-        # See all available models at https://docs.livekit.io/agents/models/stt/
-        stt=deepgram.STT(model="nova-3"),
-        # A Large Language Model (LLM) is your agent's brain, processing user input and generating a response
-        # See all available models at https://docs.livekit.io/agents/models/llm/
+        stt=deepgram.STT(
+            model="nova-3",
+            language="multi",
+        ),
         llm=google.LLM(
-                model="gemini-3.5-flash-lite",
-            ),
-        # Text-to-speech (TTS) is your agent's voice, turning the LLM's text into speech that the user can hear
-        # See all available models as well as voice selections at https://docs.livekit.io/agents/models/tts/
+            model="gemini-3.5-flash-lite",
+        ),
         tts=murf.TTS(
-                voice="Anisha", 
-                locale="en-IN",
-                style="Conversation",
-                tokenizer=tokenize.basic.SentenceTokenizer(min_sentence_len=2),
-                text_pacing=True
+            voice="Anisha",
+            style="Conversation",
+            tokenizer=tokenize.basic.SentenceTokenizer(
+                min_sentence_len=2
             ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
+            text_pacing=True,
+        ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
-        preemptive_generation=True,
+
+        # Important: prevents the Gemini tool-call ordering issue
+        # that was occurring with lookup_farmer().
+        preemptive_generation=False,
     )
 
-    # To use a realtime model instead of a voice pipeline, use the following session setup instead.
-    # (Note: This is for the OpenAI Realtime API. For other providers, see https://docs.livekit.io/agents/models/realtime/))
-    # 1. Install livekit-agents[openai]
-    # 2. Set OPENAI_API_KEY in .env.local
-    # 3. Add `from livekit.plugins import openai` to the top of this file
-    # 4. Use the following session setup instead of the version above
-    # session = AgentSession(
-    #     llm=openai.realtime.RealtimeModel(voice="marin")
-    # )
-
-    # # Add a virtual avatar to the session, if desired
-    # # For other providers, see https://docs.livekit.io/agents/models/avatar/
-    # avatar = hedra.AvatarSession(
-    #   avatar_id="...",  # See https://docs.livekit.io/agents/models/avatar/plugins/hedra
-    # )
-    # # Start the avatar and wait for it to join
-    # await avatar.start(session, room=ctx.room)
-
-    # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
-        agent=Assistant(),
+        agent=Assistant(
+            user_id=user_id,
+            repository=repository,
+            farmer_memory=farmer_memory,
+        ),
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
@@ -206,9 +292,6 @@ async def my_agent(ctx: JobContext):
             ),
         ),
     )
-
-    # Join the room and connect to the user
-    await ctx.connect()
 
 
 if __name__ == "__main__":
