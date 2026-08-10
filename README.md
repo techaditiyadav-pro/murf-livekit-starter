@@ -122,6 +122,76 @@ You should now see the voice agent UI. Click **Start talking**, allow microphone
 
 ---
 
+## Day 5 — Tools: Weather Lookup by District
+
+**Track:** Farm & Field
+**Tool:** `get_weather_by_district(district)`
+
+KrishiMitra automatically calls this tool when a farmer asks about a district's
+weather, temperature, humidity, rain possibility, weather condition, or
+weather-related farming advice. The data is read from
+[`backend/data/weather_data.csv`](backend/data/weather_data.csv).
+
+> **Important:** this is **LOCAL/DEMO DATA, NOT live weather data**. It is a
+> hand-built dataset for the Day 5 tools challenge, used so the flow can be
+> tested without a live-weather API. The agent says this clearly in every
+> successful weather response and includes the data date.
+
+Supported Madhya Pradesh districts are Bhopal, Indore, Jabalpur, Gwalior,
+Sagar, Ujjain, Rewa, Satna, Vidisha, and Narmadapuram. Common case variations
+and Hindi district names are normalized. If the district is absent, the agent
+asks which district is meant instead of guessing; it may use a clearly saved
+Day 4 district when one is available.
+
+Examples:
+
+- `Namaste KrishiMitra, aaj Bhopal mein baarish hogi?`
+- `Indore ka weather batao.`
+- `Jabalpur mein temperature kitna hai?`
+
+A normal response naturally states the temperature, rain probability,
+condition, farming advice, exact data date, and that it is local/demo rather
+than live weather. It never reads the internal JSON.
+
+If a district is unsupported, the agent says that local weather data was not
+found and does not guess. If the CSV is missing, empty, malformed, or cannot be
+read, it says weather data is unavailable and does not invent weather values.
+
+### Test procedure
+
+No extra installation or environment variable is required:
+
+```bash
+cd backend
+uv sync
+uv run python src/agent.py download-files
+uv run python src/agent.py dev
+```
+
+Ask these exact questions:
+
+1. `Namaste KrishiMitra, aaj Bhopal mein baarish hogi?` — calls the tool for
+   Bhopal and gives a dated local/demo-data answer.
+2. `Indore ka weather batao.` — calls the tool for Indore.
+3. `Jabalpur mein temperature kitna hai?` — calls the tool for Jabalpur.
+4. `Aaj baarish hogi?` — asks: `Aap kis district ka weather jaana chahte hain?`
+   and does not guess.
+5. Ask about an unsupported district such as Delhi — explains that local weather
+   data is not available there.
+6. Rename `backend/data/weather_data.csv` to `weather_data_backup.csv`, restart
+   the agent, and ask `Bhopal ka weather batao.` The agent should say weather
+   data is unavailable and must not state a temperature, rain probability, or
+   other weather value.
+
+Run the local reader tests with:
+
+```bash
+cd backend
+uv run pytest tests/test_weather_data.py
+```
+
+---
+
 ## Deploy
 
 Want to deploy this beyond localhost? You'll need to deploy **two services**: the backend agent and the frontend. Both must use the same LiveKit project.

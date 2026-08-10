@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from typing import Any
@@ -20,6 +21,7 @@ from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from database import FarmerRepository
+from weather_data import WeatherDataClient
 
 
 logger = logging.getLogger("agent")
@@ -45,6 +47,18 @@ You have persistent farmer memory through:
 - lookup_farmer()
 - save_farmer_memory()
 
+You have get_weather_by_district(district), which uses LOCAL/DEMO DATA and is
+not live weather. Use it automatically whenever a farmer asks for weather,
+today's weather, temperature, humidity, rain possibility, weather conditions,
+or weather-related farming advice for a specific district. Never invent weather
+values. If the district is missing, ask: "Bilkul, main weather check kar sakta
+hoon. Aap kis district ka weather jaana chahte hain?" Do not guess a district,
+unless saved memory clearly contains one. For successful results, naturally say
+the exact data date and clearly say it is local/demo data, not live weather.
+Never read JSON. If data is unavailable, say that weather data is unavailable
+and you cannot confirm weather right now. If no district record is found, say
+you do not have local weather data for that district and will not guess.
+
 Never ask the farmer for an internal user ID.
 Never invent an ID.
 Never expose raw JSON or database details.
@@ -66,12 +80,12 @@ Be respectful, patient, encouraging and farmer-friendly.
 class Assistant(Agent):
     def __init__(
         self,
-        user_id: str,
-        repository: FarmerRepository,
+        user_id: str = "anonymous",
+        repository: FarmerRepository | None = None,
         farmer_memory: dict[str, Any] | None = None,
     ) -> None:
         self.user_id = user_id
-        self.repository = repository
+        self.repository = repository or FarmerRepository()
         self.farmer_memory = farmer_memory
 
         memory_context = ""
@@ -200,6 +214,25 @@ class Assistant(Agent):
                 )
 
         return "The farmer information was saved successfully."
+
+    @function_tool
+    async def get_weather_by_district(
+        self,
+        context: RunContext,
+        district: str,
+    ) -> str:
+        """
+        Look up local/demo weather data for one Madhya Pradesh district.
+
+        Use whenever the farmer asks about current/today's weather, temperature,
+        humidity, rain probability, weather conditions, or farming weather advice
+        for a specific district. This is LOCAL/DEMO DATA, never live weather.
+        If the district is absent, ask which district before calling this tool.
+        """
+        result = await asyncio.to_thread(
+            WeatherDataClient().get_weather_by_district, district
+        )
+        return json.dumps(result, ensure_ascii=False)
 
 
 server = AgentServer()
