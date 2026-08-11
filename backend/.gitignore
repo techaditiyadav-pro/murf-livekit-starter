@@ -9,6 +9,7 @@ KMS
 .vscode
 *.egg-info
 .pytest_cache
+data/*.db
 .ruff_cache
 
 # Claude Code

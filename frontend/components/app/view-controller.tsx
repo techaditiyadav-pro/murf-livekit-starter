@@ -1,76 +1,75 @@
 'use client';
 
-import { useTheme } from 'next-themes';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { useSessionContext } from '@livekit/components-react';
 import type { AppConfig } from '@/app-config';
-import { AgentSessionView_01 } from '@/components/agents-ui/blocks/agent-session-view-01';
+import { KrishiSession } from '@/components/app/krishi-session';
 import { WelcomeView } from '@/components/app/welcome-view';
 
-const MotionWelcomeView = motion.create(WelcomeView);
-const MotionSessionView = motion.create(AgentSessionView_01);
+type ViewState = 'ready' | 'connecting' | 'ended' | 'error';
 
-const VIEW_MOTION_PROPS = {
-  variants: {
-    visible: {
-      opacity: 1,
-    },
-    hidden: {
-      opacity: 0,
-    },
-  },
-  initial: 'hidden',
-  animate: 'visible',
-  exit: 'hidden',
-  transition: {
-    duration: 0.5,
-    ease: 'linear',
-  },
-};
-
-interface ViewControllerProps {
-  appConfig: AppConfig;
-}
-
-export function ViewController({ appConfig }: ViewControllerProps) {
+export function ViewController({ appConfig }: { appConfig: AppConfig }) {
   const { isConnected, start } = useSessionContext();
-  const { resolvedTheme } = useTheme();
-
+  const [viewState, setViewState] = useState<ViewState>('ready');
+  const connectedOnce = useRef(false);
+  useEffect(() => {
+    if (isConnected) {
+      connectedOnce.current = true;
+      setViewState('ready');
+    } else if (connectedOnce.current && viewState === 'ready') setViewState('ended');
+  }, [isConnected, viewState]);
+  const startCall = async () => {
+    setViewState('connecting');
+    try {
+      await start();
+    } catch (error) {
+      console.error('Unable to start KrishiMitra AI session:', error);
+      setViewState('error');
+    }
+  };
+  const errorText =
+    'KrishiMitra AI needs microphone access to hear you. Please allow microphone permission in your browser settings and try again.';
   return (
     <AnimatePresence mode="wait">
-      {/* Welcome view */}
-      {!isConnected && (
-        <MotionWelcomeView
-          key="welcome"
-          {...VIEW_MOTION_PROPS}
-          startButtonText={appConfig.startButtonText}
-          onStartCall={start}
-        />
-      )}
-      {/* Session view */}
-      {isConnected && (
-        <MotionSessionView
-          key="session-view"
-          {...VIEW_MOTION_PROPS}
-          supportsChatInput={appConfig.supportsChatInput}
-          supportsVideoInput={appConfig.supportsVideoInput}
-          supportsScreenShare={appConfig.supportsScreenShare}
-          isPreConnectBufferEnabled={appConfig.isPreConnectBufferEnabled}
-          audioVisualizerType={appConfig.audioVisualizerType}
-          audioVisualizerColor={
-            resolvedTheme === 'dark'
-              ? appConfig.audioVisualizerColorDark
-              : appConfig.audioVisualizerColor
-          }
-          audioVisualizerColorShift={appConfig.audioVisualizerColorShift}
-          audioVisualizerBarCount={appConfig.audioVisualizerBarCount}
-          audioVisualizerGridRowCount={appConfig.audioVisualizerGridRowCount}
-          audioVisualizerGridColumnCount={appConfig.audioVisualizerGridColumnCount}
-          audioVisualizerRadialBarCount={appConfig.audioVisualizerRadialBarCount}
-          audioVisualizerRadialRadius={appConfig.audioVisualizerRadialRadius}
-          audioVisualizerWaveLineWidth={appConfig.audioVisualizerWaveLineWidth}
+      {isConnected ? (
+        <motion.div
+          key="call"
           className="fixed inset-0"
-        />
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <KrishiSession onEnd={() => setViewState('ended')} />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="welcome"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          {viewState === 'ended' ? (
+            <div className="krishi-page">
+              <section className="krishi-ended-card">
+                <span>🌾</span>
+                <h1>Call ended / बातचीत समाप्त</h1>
+                <p>Thank you for talking with KrishiMitra AI.</p>
+                <p>फिर मिलेंगे — आपकी खेती के लिए हमेशा तैयार।</p>
+                <button type="button" className="krishi-restart" onClick={startCall}>
+                  🔄 Start Again / फिर से शुरू करें
+                </button>
+              </section>
+            </div>
+          ) : (
+            <WelcomeView
+              startButtonText={appConfig.startButtonText}
+              onStartCall={startCall}
+              isConnecting={viewState === 'connecting'}
+              error={viewState === 'error' ? errorText : null}
+            />
+          )}
+        </motion.div>
       )}
     </AnimatePresence>
   );

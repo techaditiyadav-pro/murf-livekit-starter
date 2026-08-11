@@ -1,0 +1,11 @@
+district,date,temperature_c,humidity_percent,rain_probability_percent,weather_condition,wind_speed_kmph,farming_advice
+Bhopal,2026-08-10,28,72,65,Cloudy,14,"Plan outdoor farming activities carefully because rain is possible."
+Indore,2026-08-10,29,68,40,Partly Cloudy,12,"Irrigate only after checking soil moisture; light rain is possible."
+Jabalpur,2026-08-10,27,78,75,Overcast,16,"Avoid spraying pesticides if rain begins; keep drainage channels clear."
+Gwalior,2026-08-10,31,57,20,Sunny,18,"Water young crops in the cooler morning or evening hours."
+Sagar,2026-08-10,26,81,80,Rainy,15,"Postpone fertilizer and pesticide application until rain reduces."
+Ujjain,2026-08-10,30,63,35,Partly Cloudy,13,"Monitor soil moisture before irrigating and secure loose crop covers."
+Rewa,2026-08-10,27,76,70,Cloudy,11,"Keep harvested produce covered and check field drainage."
+Satna,2026-08-10,28,73,60,Cloudy,14,"Plan field work carefully and avoid spraying before possible rain."
+Vidisha,2026-08-10,29,69,45,Partly Cloudy,10,"Use the cooler hours for weeding and inspect crops for water stress."
+Narmadapuram,2026-08-10,27,79,70,Overcast,17,"Keep drainage clear and delay foliar sprays if rain is expected."
