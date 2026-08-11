@@ -23,3 +23,12 @@ def test_farmer_memory_persists_and_merges_updates(tmp_path) -> None:
         "crops_grown": "cotton, soybean",
         "land_size": "5 acres",
     }
+
+
+def test_outbound_opt_out_persists(tmp_path) -> None:
+    repository = FarmerRepository(tmp_path / "farmers.db")
+
+    assert repository.has_outbound_opt_out("farmer-1") is False
+    repository.opt_out_of_outbound_calls("farmer-1")
+
+    assert repository.has_outbound_opt_out("farmer-1") is True

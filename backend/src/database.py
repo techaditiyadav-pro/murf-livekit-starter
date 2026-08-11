@@ -89,3 +89,17 @@ class FarmerRepository:
                 {**profile, "facts": json.dumps(merged_facts, ensure_ascii=False)},
             )
         return profile
+
+    def has_outbound_opt_out(self, user_id: str) -> bool:
+        """Return whether this farmer withdrew consent for future alert calls."""
+        farmer = self.lookup_farmer(user_id)
+        return bool((farmer or {}).get("facts", {}).get("outbound_calls_opted_out"))
+
+    def opt_out_of_outbound_calls(self, user_id: str) -> dict[str, Any]:
+        """Persist an explicit request not to receive future outbound calls."""
+        return self.save_farmer_memory(
+            user_id=user_id,
+            name=None,
+            language_preference=None,
+            facts={"outbound_calls_opted_out": True},
+        )
