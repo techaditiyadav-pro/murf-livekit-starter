@@ -1,9 +1,10 @@
 import asyncio
+import json
 import logging
 from typing import Any
 
 from dotenv import load_dotenv
-from livekit import rtc
+from livekit import api
 from livekit.agents import (
     Agent,
     AgentServer,
@@ -16,127 +17,291 @@ from livekit.agents import (
     room_io,
     tokenize,
 )
-from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
+from livekit.plugins import deepgram, google, murf, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
-from database import lookup_farmer as lookup_farmer_record
-from database import save_farmer_memory as save_farmer_memory_record
+from database import FarmerRepository
+from telephony.outbound.policy import is_opt_out_request
+from weather_data import WeatherDataClient
 
 logger = logging.getLogger("agent")
 
 load_dotenv(".env.local")
 
+
 SYSTEM_PROMPT = """
-ROLE
-You are KrishiMitra AI, a friendly and helpful voice assistant for farmers. Help with
-crops, irrigation, basic crop care, weather-related farming decisions, and general
-agricultural guidance. Be respectful, patient, practical, and simple. Keep responses short,
-avoid unnecessary technical words, ask one question at a time, and never pretend to know
-something you do not know.
+You are KrishiMitra AI, a friendly and intelligent Indian farming assistant.
 
-LANGUAGE & SCRIPT
-Detect the farmer's language and respond in the same language whenever possible. Hindi must
-always be naturally written in Devanagari script; never write Hindi in Roman/English letters.
-Keep English in English. If the farmer switches languages, follow their latest language.
+Help farmers with crop care, irrigation, crop planning, soil preparation,
+fertilizers, pest awareness, organic farming, seasonal farming, and general
+agricultural guidance.
 
-MEMORY
-The current caller's stable LiveKit identity is available only through the memory tools.
-At the beginning of every conversation call lookup_user before greeting. If the farmer is
-known, greet them by their saved name, use only relevant saved farming information naturally,
-and do not repeat questions already answered in memory. Never invent a memory or claim to
-remember anything that lookup_user did not return. Never expose internal functions, database
-details, raw records, or every saved field.
+Always respond in the farmer's language.
+If the farmer speaks Hindi, use Devanagari script.
+If the farmer speaks English, respond in English.
+If the farmer uses Hinglish, use natural Hindi + English.
 
-For a new farmer, greet them, ask their name naturally, then ask relevant farming questions
-such as crop, land size, district, and irrigation only when useful. For a returning farmer,
-greet them, mention one relevant remembered fact naturally, and ask what help they need today.
+Keep voice responses short, natural, friendly and practical.
 
-Before saving ANY new or updated personal/farming information, state what useful information
-you want to remember and why, then ask: "क्या मैं यह जानकारी अगली बार आपकी मदद करने के लिए याद रखूँ?"
-Only call save_user_memory after a clear yes in the current conversation. If the farmer says
-no, is unclear, or changes topic, do not save and do not pressure them. Save only useful
-non-sensitive context: name, language preference, crops grown, land size, district, irrigation
-type, and similar farming preferences. Preserve previous information unless the farmer clearly
-corrects it; prefer new information when they provide an update. Never say it was saved unless
-the tool returns success. If a memory tool fails, continue helping naturally.
+You have persistent farmer memory through:
+- lookup_farmer()
+- save_farmer_memory()
 
-SAFETY
-Do not provide dangerous agricultural instructions or false guarantees about yield, weather,
-disease treatment, or financial outcomes. For serious crop disease, pesticide, chemical, or
-other high-risk situations, recommend a qualified local agricultural expert, KVK, or Agriculture
-Officer. For live market prices or real-time weather, explain that you cannot verify them and
-recommend the local mandi or IMD.
+You have get_weather_by_district(district), which uses LOCAL/DEMO DATA and is
+not live weather. Use it automatically whenever a farmer asks for weather,
+today's weather, temperature, humidity, rain possibility, weather conditions,
+or weather-related farming advice for a specific district. Never invent weather
+values. If the district is missing, ask: "Bilkul, main weather check kar sakta
+hoon. Aap kis district ka weather jaana chahte hain?" Do not guess a district,
+unless saved memory clearly contains one. For successful results, naturally say
+the exact data date and clearly say it is local/demo data, not live weather.
+Never read JSON. If data is unavailable, say that weather data is unavailable
+and you cannot confirm weather right now. If no district record is found, say
+you do not have local weather data for that district and will not guess.
 
-RESPONSE STYLE
-Stay conversational, concise, respectful, and supportive. Prefer practical suggestions and
-clear next steps. Give more detail only when the farmer asks for it.
+Never ask the farmer for an internal user ID.
+Never invent an ID.
+Never expose raw JSON or database details.
+
+Only save information after the farmer clearly gives permission.
+Never claim information was saved unless the save tool succeeds.
+
+Do not claim live weather, live mandi prices, government eligibility,
+crop diagnosis, medical advice, veterinary diagnosis, legal advice, or
+financial advice without a verified source.
+
+For live or local information, recommend official sources such as IMD,
+local Mandi, Krishi Vigyan Kendra, or Agriculture Officer.
+
+Be respectful, patient, encouraging and farmer-friendly.
+
+For an outbound demo weather-alert call, clearly say that you are KrishiMitra AI,
+an automated agricultural assistant, and that the alert uses local/demo weather
+data rather than live weather. If the farmer says stop, band kijiye, call mat
+karna, don't call me, no more calls, or an equivalent request, immediately call
+opt_out_of_outbound_calls(), give a brief Hindi/Hinglish confirmation, and end
+the call. Do not continue the alert after an opt-out request.
 """
 
 
 class Assistant(Agent):
-    def __init__(self, user_id: str = "test-user") -> None:
-        super().__init__(instructions=SYSTEM_PROMPT)
+    def __init__(
+        self,
+        user_id: str = "anonymous",
+        repository: FarmerRepository | None = None,
+        farmer_memory: dict[str, Any] | None = None,
+        outbound_alert: bool = False,
+        room_name: str | None = None,
+        livekit_api: Any | None = None,
+    ) -> None:
         self.user_id = user_id
+        self.repository = repository or FarmerRepository()
+        self.farmer_memory = farmer_memory
+        self.outbound_alert = outbound_alert
+        self.room_name = room_name
+        self.livekit_api = livekit_api
+        self._opt_out_end_task: asyncio.Task[None] | None = None
+
+        memory_context = ""
+
+        if farmer_memory:
+            memory_context = (
+                "\n\nFARMER MEMORY FOR THIS SESSION:\n"
+                + json.dumps(
+                    farmer_memory,
+                    ensure_ascii=False,
+                    default=str,
+                )
+                + "\nUse this memory naturally when relevant. "
+                "Do not reveal raw JSON or internal database details."
+            )
+        else:
+            memory_context = (
+                "\n\nNO PREVIOUS FARMER MEMORY WAS FOUND. Treat this as a new farmer."
+            )
+
+        super().__init__(instructions=SYSTEM_PROMPT + memory_context)
 
     async def on_enter(self) -> None:
-        """Make lookup a tool call before the opening greeting, not prompt injection."""
+        """
+        Do NOT call lookup_farmer() here.
+
+        The initial farmer memory is loaded directly from the database
+        before the AgentSession starts. This avoids Gemini function-call
+        ordering errors before a user turn exists.
+        """
+
+        if self.outbound_alert:
+            await self.session.generate_reply(
+                instructions=(
+                    "Speak this opening naturally in Hindi/Hinglish, without tools: "
+                    "Namaste, main KrishiMitra AI hoon, automated kheti sahayak. "
+                    "Main aapke registered crop ke liye demo weather warning dene "
+                    "ke liye call kar raha hoon. Agar aap future mein aise calls "
+                    "nahi chahte, bas stop, band kijiye, ya call mat karna keh dijiye. "
+                    "Hamare local demo weather data mein baarish ki sambhavna hai, "
+                    "isliye kati hui fasal ko dhak kar aur zaroori kaam baarish se "
+                    "pehle kar lena behtar rahega. Kya aap is alert ke baare mein "
+                    "aur jaankari chahenge?"
+                )
+            )
+            return
+
+        if self.farmer_memory:
+            name = self.farmer_memory.get("name")
+
+            if name:
+                greeting = (
+                    f"नमस्ते {name} जी! आपका फिर से स्वागत है। "
+                    "आज मैं आपकी खेती से जुड़ी किस समस्या में मदद कर सकता हूँ?"
+                )
+            else:
+                greeting = (
+                    "नमस्ते! आपका फिर से स्वागत है। "
+                    "आज मैं आपकी खेती से जुड़ी किस समस्या में मदद कर सकता हूँ?"
+                )
+        else:
+            greeting = (
+                "नमस्ते! मैं KrishiMitra AI हूँ, आपका डिजिटल खेती सहायक। "
+                "मैं फसल, सिंचाई, मिट्टी, खाद और खेती से जुड़ी सामान्य जानकारी "
+                "में आपकी मदद कर सकता हूँ। आज आप किस बारे में जानना चाहते हैं?"
+            )
+
         await self.session.generate_reply(
             instructions=(
-                "This is the beginning of the call. Call lookup_user now, then give the "
-                "appropriate concise greeting based only on the tool result."
+                "Give this short opening greeting. "
+                "Do not call any tools for the opening greeting.\n\n" + greeting
             )
         )
 
-    @function_tool
-    async def lookup_user(self, context: RunContext) -> dict[str, Any]:
-        """Look up the current caller's saved farming profile at the start of each call.
+    async def on_user_turn_completed(self, turn_ctx, new_message) -> None:
+        """Make explicit outbound-call opt-outs non-optional for the LLM."""
+        if self.outbound_alert and is_opt_out_request(new_message.text_content or ""):
+            new_message.content.append(
+                "SYSTEM INSTRUCTION: This is an explicit opt-out. Immediately "
+                "call opt_out_of_outbound_calls, briefly confirm in Hindi/Hinglish, "
+                "and do not continue the weather-alert conversation."
+            )
 
-        Use this before greeting. The caller identity is supplied securely by LiveKit; do not
-        ask the farmer for an ID. Return only the profile needed for a natural greeting.
-        """
+    @function_tool
+    async def lookup_farmer(
+        self,
+        context: RunContext,
+    ) -> str:
+        """Look up persistent memory for the current farmer."""
+
+        logger.info("Looking up farmer memory for user_id=%s", self.user_id)
+
         try:
-            profile = lookup_farmer_record(self.user_id)
+            farmer = self.repository.lookup_farmer(self.user_id)
         except Exception:
-            logger.exception("Farmer lookup failed for %s", self.user_id)
-            return {
-                "status": "error",
-                "message": "Memory lookup is temporarily unavailable.",
-            }
-        if profile is None:
-            return {"status": "not_found"}
-        return {"status": "found", "profile": profile}
+            logger.exception("Farmer memory lookup failed")
+            return (
+                "Memory lookup failed. Continue normally without assuming "
+                "previous farmer information."
+            )
+
+        if farmer is None:
+            return "No farmer profile found. Treat this as a new farmer."
+
+        return json.dumps(
+            farmer,
+            ensure_ascii=False,
+            default=str,
+        )
 
     @function_tool
-    async def save_user_memory(
+    async def save_farmer_memory(
         self,
         context: RunContext,
         name: str | None = None,
         language_preference: str | None = None,
-        facts: dict[str, str] | None = None,
-    ) -> dict[str, Any]:
-        """Persist consented useful farming details for the current caller.
-
-        Call only after the farmer explicitly agrees in the current conversation. Include only
-        useful non-sensitive facts such as crops_grown, land_size, district, or irrigation_type.
-        Existing facts are merged so an update never creates a duplicate record.
+        facts: dict[str, Any] | None = None,
+    ) -> str:
         """
+        Save farmer information only after explicit consent.
+        """
+
+        logger.info("Saving farmer memory for user_id=%s", self.user_id)
+
         try:
-            profile = save_farmer_memory_record(
-                self.user_id, name, language_preference, facts or {}
+            farmer = self.repository.save_farmer_memory(
+                self.user_id,
+                name,
+                language_preference,
+                facts or {},
             )
         except Exception:
-            logger.exception("Farmer memory save failed for %s", self.user_id)
-            return {
-                "status": "error",
-                "message": "The information could not be saved. Do not claim it was saved.",
-            }
-        return {"status": "saved", "profile": profile}
+            logger.exception("Farmer memory save failed")
+            return "Memory save failed. Do not claim that the information was saved."
+
+        if isinstance(farmer, dict):
+            saved_fields = list(farmer.get("facts", {}).keys())
+            if saved_fields:
+                logger.info(
+                    "Farmer memory saved: %s",
+                    ", ".join(saved_fields),
+                )
+
+        return "The farmer information was saved successfully."
+
+    @function_tool
+    async def get_weather_by_district(
+        self,
+        context: RunContext,
+        district: str,
+    ) -> str:
+        """
+        Look up local/demo weather data for one Madhya Pradesh district.
+
+        Use whenever the farmer asks about current/today's weather, temperature,
+        humidity, rain probability, weather conditions, or farming weather advice
+        for a specific district. This is LOCAL/DEMO DATA, never live weather.
+        If the district is absent, ask which district before calling this tool.
+        """
+        result = await asyncio.to_thread(
+            WeatherDataClient().get_weather_by_district, district
+        )
+        return json.dumps(result, ensure_ascii=False)
+
+    @function_tool
+    async def opt_out_of_outbound_calls(self, context: RunContext) -> str:
+        """Record an explicit request to stop all future outbound alert calls."""
+        logger.info("Recording outbound call opt-out for user_id=%s", self.user_id)
+        try:
+            self.repository.opt_out_of_outbound_calls(self.user_id)
+            self._opt_out_end_task = asyncio.create_task(
+                self._end_outbound_call_after_confirmation()
+            )
+        except Exception:
+            logger.exception("Outbound opt-out could not be fully completed")
+            return "The opt-out could not be saved. Apologize and ask the farmer to try again."
+        return (
+            "Opt-out saved. Give the short confirmation now; the call will end "
+            "immediately after it finishes."
+        )
+
+    async def _end_outbound_call_after_confirmation(self) -> None:
+        """Leave enough time for the confirmation TTS before ending the SIP call."""
+        if not self.livekit_api or not self.room_name:
+            return
+        await asyncio.sleep(4)
+        try:
+            await self.livekit_api.room.remove_participant(
+                api.RoomParticipantIdentity(
+                    room=self.room_name,
+                    identity=self.user_id,
+                )
+            )
+            logger.info("Outbound SIP call ended after opt-out confirmation")
+        except Exception:
+            logger.exception("Could not end outbound SIP call after opt-out")
 
 
 server = AgentServer()
 
 
-def prewarm(proc: JobProcess) -> None:
+def prewarm(proc: JobProcess):
     proc.userdata["vad"] = silero.VAD.load()
 
 
@@ -144,16 +309,74 @@ server.setup_fnc = prewarm
 
 
 @server.rtc_session(agent_name="my-agent")
-async def my_agent(ctx: JobContext) -> None:
-    ctx.log_context_fields = {"room": ctx.room.name}
+async def my_agent(ctx: JobContext):
+    ctx.log_context_fields = {
+        "room": ctx.room.name,
+    }
+
     await ctx.connect()
-    participant = await ctx.wait_for_participant()
-    user_id = participant.identity
-    logger.info("Starting KrishiMitra session for caller %s", user_id)
+
+    @ctx.room.on("participant_connected")
+    def on_participant_connected(participant) -> None:
+        logger.info(
+            "participant_connected identity=%s kind=%s",
+            participant.identity,
+            participant.kind,
+        )
+
+    @ctx.room.on("track_subscribed")
+    def on_track_subscribed(track, publication, participant) -> None:
+        logger.info(
+            "track_subscribed identity=%s kind=%s source=%s",
+            participant.identity,
+            track.kind,
+            publication.source,
+        )
+
+    participants = list(ctx.room.remote_participants.values())
+
+    for participant in participants:
+        logger.info(
+            "participant_connected identity=%s kind=%s (already in room)",
+            participant.identity,
+            participant.kind,
+        )
+
+    if participants:
+        user_id = participants[0].identity
+        logger.info("Farmer identity detected: %s", user_id)
+    else:
+        user_id = ctx.room.name
+        logger.warning(
+            "No remote participant found. Using room name as fallback: %s",
+            user_id,
+        )
+
+    repository = FarmerRepository()
+
+    farmer_memory = None
+
+    try:
+        farmer_memory = repository.lookup_farmer(user_id)
+
+        if farmer_memory:
+            logger.info("Existing farmer memory found.")
+        else:
+            logger.info("No previous farmer memory found.")
+
+    except Exception:
+        logger.exception(
+            "Initial farmer memory lookup failed. Starting without memory."
+        )
 
     session = AgentSession(
-        stt=deepgram.STT(model="nova-3", language="multi"),
-        llm=google.LLM(model="gemini-3.5-flash-lite"),
+        stt=deepgram.STT(
+            model="nova-3",
+            language="multi",
+        ),
+        llm=google.LLM(
+            model="gemini-3.5-flash-lite",
+        ),
         tts=murf.TTS(
             voice="Anisha",
             style="Conversation",
@@ -162,46 +385,63 @@ async def my_agent(ctx: JobContext) -> None:
         ),
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        preemptive_generation=True,
+        # Important: prevents the Gemini tool-call ordering issue
+        # that was occurring with lookup_farmer().
+        preemptive_generation=False,
     )
+
+    @session.on("user_input_transcribed")
+    def on_user_input_transcribed(event) -> None:
+        logger.info(
+            "user_input_transcribed final=%s language=%s transcript=%s",
+            event.is_final,
+            event.language,
+            event.transcript,
+        )
+        if event.is_final:
+            logger.info("USER TRANSCRIPT: %s", event.transcript)
+
+    @session.on("user_state_changed")
+    def on_user_state_changed(event) -> None:
+        logger.info(
+            "user_state_changed %s -> %s",
+            event.old_state,
+            event.new_state,
+        )
+
+    @session.on("agent_state_changed")
+    def on_agent_state_changed(event) -> None:
+        logger.info(
+            "agent_state_changed %s -> %s",
+            event.old_state,
+            event.new_state,
+        )
+
+    @session.on("conversation_item_added")
+    def on_conversation_item_added(event) -> None:
+        item = event.item
+        logger.info(
+            "conversation_item_added role=%s text=%s",
+            getattr(item, "role", "unknown"),
+            getattr(item, "text_content", None),
+        )
 
     await session.start(
-        agent=Assistant(user_id=user_id),
-        room=ctx.room,
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: (
-                    noise_cancellation.BVCTelephony()
-                    if params.participant.kind
-                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
-                    else noise_cancellation.BVC()
-                ),
+        agent=Assistant(
+            user_id=user_id,
+            repository=repository,
+            farmer_memory=farmer_memory,
+            outbound_alert=(
+                getattr(ctx.job, "metadata", "") == "krishimitra-weather-alert"
             ),
+            room_name=ctx.room.name,
+            livekit_api=ctx.api,
         ),
+        room=ctx.room,
+        # Use LiveKit's direct room audio input. Do not insert a custom SIP
+        # noise-cancellation processor before VAD and Deepgram STT.
+        room_options=room_io.RoomOptions(close_on_disconnect=False),
     )
-
-    chat_tasks: set[asyncio.Task[None]] = set()
-
-    def handle_chat_message(reader: rtc.TextStreamReader, sender_identity: str) -> None:
-        """Pass typed messages to the same AgentSession used for voice."""
-
-        async def respond() -> None:
-            if sender_identity != user_id:
-                logger.warning("Ignoring chat message from an unlinked participant")
-                return
-            try:
-                message = (await reader.read_all()).strip()
-                if message:
-                    await session.interrupt()
-                    session.generate_reply(user_input=message)
-            except Exception:
-                logger.exception("Unable to process typed chat message")
-
-        task = asyncio.create_task(respond())
-        chat_tasks.add(task)
-        task.add_done_callback(chat_tasks.discard)
-
-    ctx.room.register_text_stream_handler("krishimitra-chat", handle_chat_message)
 
 
 if __name__ == "__main__":
