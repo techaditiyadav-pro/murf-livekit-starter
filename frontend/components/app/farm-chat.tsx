@@ -1,7 +1,8 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Send, Sprout, UserRound } from 'lucide-react';
+import Link from 'next/link';
+import { Headset, Send, Sprout, UserRound } from 'lucide-react';
 import { useAgent, useRoomContext, useSessionMessages } from '@livekit/components-react';
 
 type LocalMessage = { id: string; text: string };
@@ -77,15 +78,26 @@ export function FarmChat() {
 
   return (
     <section className="farm-card mt-6 overflow-hidden text-left" aria-label="KrishiMitra AI chat">
-      <header className="border-primary/15 bg-primary/5 flex items-center gap-3 border-b px-4 py-4 sm:px-6">
-        <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-xl">
-          <Sprout className="size-5" aria-hidden="true" />
+      <header className="border-primary/15 bg-primary/5 flex items-center justify-between gap-3 border-b px-4 py-4 sm:px-6">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary text-primary-foreground flex size-10 items-center justify-center rounded-xl">
+            <Sprout className="size-5" aria-hidden="true" />
+          </div>
+          <div>
+            <h2 className="text-foreground font-bold">🌾 KrishiMitra AI</h2>
+            <p className="text-muted-foreground text-xs">आपका खेती-बाड़ी का AI साथी</p>
+            <p className="text-primary mt-1 text-xs font-semibold">● Online • Farming Assistant</p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-foreground font-bold">🌾 KrishiMitra AI</h2>
-          <p className="text-muted-foreground text-xs">आपका खेती-बाड़ी का AI साथी</p>
-          <p className="text-primary mt-1 text-xs font-semibold">● Online • Farming Assistant</p>
-        </div>
+
+        <Link href="/help">
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-amber-700"
+          >
+            <Headset className="size-4" /> Human Help
+          </button>
+        </Link>
       </header>
 
       <div

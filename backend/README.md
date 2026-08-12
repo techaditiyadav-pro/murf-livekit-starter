@@ -64,7 +64,95 @@ uv run python src/agent.py console
 uv run python src/agent.py start
 ```
 
-## Configuration
+### Farmer memory and typed chat
+
+KrishiMitra keeps consented farmer preferences in the durable SQLite database at
+`backend/data/krishimitra.db`. The LiveKit participant identity is used as the database key;
+the agent looks it up when a session starts and uses the same `AgentSession` for both spoken
+and typed messages. A farmer must explicitly agree before the agent calls the memory save tool.
+
+The browser offers **Start Chat** as well as voice calling. Both paths connect to the same
+agent, so they share the active conversation and the saved farmer profile.
+
+To run the local persistence checks:
+
+```bash
+uv run pytest tests/test_database.py
+```
+
+### Day 6 — Outbound Farm Alert Telephony
+
+KrishiMitra AI can proactively call a farmer via LiveKit SIP telephony using a Linphone SIP
+account. The call flow is:
+
+```
+KrishiMitra AI → LiveKit Agent Worker → LiveKit SIP Outbound Trunk → Linphone SIP → Farmer's Linphone app
+```
+
+#### Environment variables required for Day 6
+
+Add these to `backend/.env.local` (copy from `.env.example`):
+
+| Variable | Description |
+|---|---|
+| `LIVEKIT_SIP_OUTBOUND_TRUNK_ID` | LiveKit outbound SIP trunk ID (starts with `ST_`) |
+| `LINPHONE_SIP_URI` | Your Linphone SIP URI (e.g. `sip:username@sip.linphone.org`) |
+| `SIP_OUTBOUND_HOST` | SIP proxy host (e.g. `sip.linphone.org`) |
+| `AGENT_NAME` | LiveKit agent name (default: `my-agent`) |
+
+#### How to create the outbound SIP trunk
+
+1. Log in to [LiveKit Cloud](https://cloud.livekit.io/) → **SIP** → **Outbound Trunks**
+2. Create a new outbound trunk using your Linphone SIP credentials
+3. Copy the trunk ID (starts with `ST_`) into `LIVEKIT_SIP_OUTBOUND_TRUNK_ID`
+
+#### Running an outbound farm alert call
+
+**Terminal 1 — Start the agent worker:**
+
+```bash
+cd backend
+uv run python src/telephony/outbound/agent.py dev
+```
+
+**Terminal 2 — Trigger the outbound call:**
+
+```bash
+cd backend
+# Scenario 1: Ramesh / Wheat — farmer verifies and acknowledges symptoms
+uv run python src/telephony/outbound/dial.py --alert-id 1
+
+# Scenario 2: Suresh / Soybean — farmer verifies but says no symptoms
+uv run python src/telephony/outbound/dial.py --alert-id 2
+
+# Scenario 3: Mahesh / Rice — verification fails after 2 attempts
+uv run python src/telephony/outbound/dial.py --alert-id 3
+
+# Optional: specify a Linphone username explicitly
+uv run python src/telephony/outbound/dial.py --to username --alert-id 1
+```
+
+If `--to` is omitted, the dial script reads `LINPHONE_SIP_URI` from the environment.
+
+#### Test scenarios
+
+| Alert ID | Farmer | Crop | Expected flow |
+|---|---|---|---|
+| 1 | Ramesh Kumar | Wheat | Verifies crop → alert explained → farmer confirms symptoms → status: `confirmed` |
+| 2 | Suresh Patel | Soybean | Verifies crop → alert explained → farmer says no symptoms → status: `not_observed` |
+| 3 | Mahesh Verma | Rice | Gives wrong crop twice → alert NOT revealed → status: `verification_failed` |
+
+#### Troubleshooting Day 6
+
+| Symptom | Likely cause | File to check |
+|---|---|---|
+| `MISSING ENVIRONMENT VARIABLES` | `.env.local` not loaded | `src/telephony/outbound/dial.py` lines 41–44 |
+| `FARM ALERT NOT FOUND` | Database not seeded | `src/database.py` — run `uv run pytest tests/test_database.py` |
+| `Agent dispatch creation notice` | Agent worker not running | Start Terminal 1 before Terminal 2 |
+| `SIP OUTBOUND CALL PLACED` but no ring | Wrong trunk ID | Verify `LIVEKIT_SIP_OUTBOUND_TRUNK_ID` in LiveKit Cloud dashboard |
+| Linphone not ringing | SIP credentials on trunk | Check Linphone SIP credentials in LiveKit Cloud outbound trunk config |
+| Call connects but no audio | Agent not dispatched in time | Re-run Terminal 2 after confirming Terminal 1 shows `connected` |
+
 
 All configuration lives in [`src/agent.py`](src/agent.py).
 

@@ -13,7 +13,7 @@ DATABASE_PATH = Path(__file__).resolve().parent.parent / "data" / "krishimitra.d
 
 
 def _connection() -> sqlite3.Connection:
-    """Open the on-disk database and ensure its schema exists."""
+    """Open the on-disk database and ensure its schemas exist."""
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
     connection = sqlite3.connect(DATABASE_PATH)
     connection.execute(
@@ -27,7 +27,131 @@ def _connection() -> sqlite3.Connection:
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS farm_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            farmer_name TEXT NOT NULL,
+            sip_destination TEXT NOT NULL,
+            village TEXT NOT NULL,
+            crop TEXT NOT NULL,
+            alert_type TEXT NOT NULL,
+            alert_reason TEXT NOT NULL,
+            recommended_action TEXT NOT NULL,
+            verification_question TEXT NOT NULL,
+            verification_answer TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
+            notes TEXT DEFAULT '',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            call_attempts INTEGER DEFAULT 0,
+            last_call_outcome TEXT DEFAULT ''
+        )
+        """
+    )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS escalations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reference_id TEXT UNIQUE NOT NULL,
+            farmer_name TEXT NOT NULL,
+            reason TEXT NOT NULL,
+            problem_summary TEXT NOT NULL,
+            what_agent_checked TEXT NOT NULL,
+            urgency TEXT NOT NULL,
+            language TEXT NOT NULL,
+            preferred_follow_up_method TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'OPEN',
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        """
+    )
+    _seed_farm_alerts_if_empty(connection)
     return connection
+
+
+def _seed_farm_alerts_if_empty(connection: sqlite3.Connection) -> None:
+    """Seed initial demo farm alerts if none exist."""
+    count = connection.execute("SELECT COUNT(*) FROM farm_alerts").fetchone()[0]
+    if count > 0:
+        return
+
+    import os
+
+    default_sip_uri = os.getenv(
+        "LINPHONE_SIP_URI",
+        f"sip:demo@{os.getenv('SIP_OUTBOUND_HOST', 'sip.linphone.org')}",
+    )
+    now = datetime.now(UTC).isoformat()
+    demo_alerts = [
+        (
+            1,
+            "Ramesh Kumar",
+            default_sip_uri,
+            "Rampur",
+            "Wheat",
+            "Leaf Rust Disease Risk",
+            "High humidity and temperature fluctuation in your zone increase yellow leaf rust fungal risk.",
+            "Inspect leaf surfaces for yellow/orange powdery spots and apply recommended bio-fungicide if spots are seen.",
+            "Kripya confirm kijiye, kya aapki main crop Wheat (Gehun) hai?",
+            "wheat,gehun,yes,haan,ji,sahi hai",
+            "pending",
+            "Demo alert created for Scenario 1 (Verified + Acknowledged)",
+            now,
+            now,
+            0,
+            "Not called yet",
+        ),
+        (
+            2,
+            "Suresh Patel",
+            default_sip_uri,
+            "Kishanganj",
+            "Soybean",
+            "Stem Borer Pest Warning",
+            "Recent rainfall and humidity have triggered stem borer pest activity in neighboring fields.",
+            "Check stems for tiny entry holes or wilting shoots. Install pheromone traps if necessary.",
+            "Kripya confirm kijiye, kya aapki main crop Soybean hai?",
+            "soybean,yes,haan,ji,sahi hai",
+            "pending",
+            "Demo alert created for Scenario 2 (Verified + Issue Not Observed)",
+            now,
+            now,
+            0,
+            "Not called yet",
+        ),
+        (
+            3,
+            "Mahesh Verma",
+            default_sip_uri,
+            "Sonpur",
+            "Rice",
+            "Irrigation Requirement Reminder",
+            "A dry spell is predicted over the next 4 days during critical grain filling stage.",
+            "Maintain 2-3 cm standing water in paddy fields to prevent soil drying and yield drop.",
+            "Kripya confirm kijiye, kya aapki main crop Rice (Paddy) hai?",
+            "rice,chawal,paddy,yes,haan,ji,sahi hai",
+            "pending",
+            "Demo alert created for Scenario 3 (Verification Failure)",
+            now,
+            now,
+            0,
+            "Not called yet",
+        ),
+    ]
+
+    connection.executemany(
+        """
+        INSERT INTO farm_alerts (
+            id, farmer_name, sip_destination, village, crop, alert_type, alert_reason,
+            recommended_action, verification_question, verification_answer, status, notes,
+            created_at, updated_at, call_attempts, last_call_outcome
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        demo_alerts,
+    )
+    connection.commit()
 
 
 def lookup_farmer(user_id: str) -> dict[str, Any] | None:
@@ -103,3 +227,292 @@ def save_farmer_memory(
         raise
 
     return profile
+
+
+def get_farm_alert(alert_id: int) -> dict[str, Any] | None:
+    """Retrieve a single farm alert by ID."""
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                "SELECT * FROM farm_alerts WHERE id = ?", (alert_id,)
+            ).fetchone()
+            if row:
+                return dict(row)
+    except sqlite3.Error:
+        logger.exception("Unable to look up farm alert %s", alert_id)
+        raise
+    return None
+
+
+def get_pending_alert_by_farmer(farmer_identifier: str) -> dict[str, Any] | None:
+    """Retrieve the latest alert for a farmer by name or SIP destination."""
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                """
+                SELECT * FROM farm_alerts
+                WHERE farmer_name LIKE ? OR sip_destination LIKE ?
+                ORDER BY id ASC LIMIT 1
+                """,
+                (f"%{farmer_identifier}%", f"%{farmer_identifier}%"),
+            ).fetchone()
+            if row:
+                return dict(row)
+    except sqlite3.Error:
+        logger.exception("Unable to look up farm alert for %s", farmer_identifier)
+        raise
+    return None
+
+
+def list_farm_alerts() -> list[dict[str, Any]]:
+    """List all farm alert records in the database."""
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT * FROM farm_alerts ORDER BY id ASC"
+            ).fetchall()
+            return [dict(row) for row in rows]
+    except sqlite3.Error:
+        logger.exception("Unable to list farm alerts")
+        return []
+
+
+def update_farm_alert(
+    alert_id: int,
+    status: str,
+    notes: str = "",
+    last_call_outcome: str = "",
+) -> dict[str, Any] | None:
+    """Update farm alert status, notes, last call outcome, and timestamp."""
+    now = datetime.now(UTC).isoformat()
+    try:
+        with _connection() as connection:
+            connection.execute(
+                """
+                UPDATE farm_alerts
+                SET status = ?,
+                    notes = ?,
+                    last_call_outcome = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (
+                    status,
+                    notes,
+                    last_call_outcome or f"Call outcome: {status}",
+                    now,
+                    alert_id,
+                ),
+            )
+            connection.commit()
+    except sqlite3.Error:
+        logger.exception("Unable to update farm alert %s", alert_id)
+        raise
+    return get_farm_alert(alert_id)
+
+
+def record_call_attempt(alert_id: int, outcome: str = "Initiating dial") -> None:
+    """Increment call attempts counter and update call outcome timestamp."""
+    now = datetime.now(UTC).isoformat()
+    try:
+        with _connection() as connection:
+            connection.execute(
+                """
+                UPDATE farm_alerts
+                SET call_attempts = call_attempts + 1,
+                    last_call_outcome = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (outcome, now, alert_id),
+            )
+            connection.commit()
+    except sqlite3.Error:
+        logger.exception("Unable to record call attempt for alert %s", alert_id)
+
+
+def sanitize_text(text: str) -> str:
+    """Sanitize user inputs to mask sensitive information such as OTPs, PINs, bank details."""
+    import re
+
+    if not text:
+        return ""
+    # Mask 4-8 digit numbers that look like OTPs / PINs / account numbers
+    sanitized = re.sub(r"\b\d{4,8}\b", "[REDACTED_CODE]", text)
+    # Mask card numbers (13-19 digits)
+    sanitized = re.sub(r"\b\d{13,19}\b", "[REDACTED_CARD]", sanitized)
+    # Mask common sensitive phrases
+    sensitive_keywords = ["password", "otp", "pin", "cvv", "bank account"]
+    for kw in sensitive_keywords:
+        pattern = re.compile(rf"\b{kw}\b\s*[:=]?\s*\S+", re.IGNORECASE)
+        sanitized = pattern.sub(f"{kw}: [REDACTED]", sanitized)
+    return sanitized.strip()
+
+
+def create_escalation(
+    farmer_name: str,
+    reason: str,
+    problem_summary: str,
+    what_agent_checked: str = "User requested human support directly.",
+    urgency: str = "medium",
+    language: str = "Hindi",
+    preferred_follow_up_method: str = "Phone Call",
+    permission_granted: bool = True,
+) -> dict[str, Any]:
+    """Create a new human help escalation record in SQLite with unique reference ID.
+
+    Requires explicit permission_granted = True. Prevents duplicate OPEN requests.
+    """
+    if not permission_granted:
+        return {
+            "status": "error",
+            "message": "Your request was not submitted because permission is required.",
+        }
+
+    cleaned_name = farmer_name.strip() if farmer_name else "Farmer"
+    cleaned_reason = reason.strip() if reason else "OTHER"
+    cleaned_summary = sanitize_text(problem_summary)
+    cleaned_checked = sanitize_text(
+        what_agent_checked or "User requested human support directly."
+    )
+    cleaned_urgency = urgency.lower() if urgency else "medium"
+    if cleaned_urgency not in {"low", "medium", "high", "emergency"}:
+        cleaned_urgency = "medium"
+
+    valid_reasons = {
+        "SERIOUS_CROP_PROBLEM",
+        "MARKET_DATA_UNAVAILABLE_OR_STALE",
+        "OTHER",
+    }
+    if cleaned_reason not in valid_reasons:
+        cleaned_reason = "OTHER"
+
+    now = datetime.now(UTC).isoformat()
+    current_year = datetime.now(UTC).year
+
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            # Check for existing duplicate OPEN request
+            existing = connection.execute(
+                """
+                SELECT * FROM escalations
+                WHERE farmer_name = ? AND reason = ? AND problem_summary = ? AND status = 'OPEN'
+                LIMIT 1
+                """,
+                (cleaned_name, cleaned_reason, cleaned_summary),
+            ).fetchone()
+
+            if existing:
+                rec = dict(existing)
+                rec["is_duplicate"] = True
+                return {
+                    "status": "success",
+                    "escalation": rec,
+                    "reference_id": rec["reference_id"],
+                }
+
+            # Generate next sequence number for reference ID
+            count_row = connection.execute(
+                "SELECT COUNT(*) FROM escalations WHERE reference_id LIKE ?",
+                (f"KM-{current_year}-%",),
+            ).fetchone()
+            seq = (count_row[0] if count_row else 0) + 1
+            reference_id = f"KM-{current_year}-{seq:04d}"
+
+            connection.execute(
+                """
+                INSERT INTO escalations (
+                    reference_id, farmer_name, reason, problem_summary,
+                    what_agent_checked, urgency, language, preferred_follow_up_method,
+                    status, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'OPEN', ?, ?)
+                """,
+                (
+                    reference_id,
+                    cleaned_name,
+                    cleaned_reason,
+                    cleaned_summary,
+                    cleaned_checked,
+                    cleaned_urgency,
+                    language or "Hindi",
+                    preferred_follow_up_method or "Phone Call",
+                    now,
+                    now,
+                ),
+            )
+            connection.commit()
+
+            created = connection.execute(
+                "SELECT * FROM escalations WHERE reference_id = ?", (reference_id,)
+            ).fetchone()
+            rec = dict(created)
+            return {
+                "status": "success",
+                "escalation": rec,
+                "reference_id": reference_id,
+            }
+
+    except sqlite3.Error as err:
+        logger.exception("Failed to create escalation record")
+        return {
+            "status": "error",
+            "message": f"Database error creating escalation: {err}",
+        }
+
+
+def list_escalations() -> list[dict[str, Any]]:
+    """List all escalation records ordered by creation date descending."""
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT * FROM escalations ORDER BY id DESC"
+            ).fetchall()
+            return [dict(row) for row in rows]
+    except sqlite3.Error:
+        logger.exception("Unable to list escalations")
+        return []
+
+
+def get_escalation(reference_id: str) -> dict[str, Any] | None:
+    """Retrieve a single escalation record by reference ID."""
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                "SELECT * FROM escalations WHERE reference_id = ?", (reference_id,)
+            ).fetchone()
+            if row:
+                return dict(row)
+    except sqlite3.Error:
+        logger.exception("Unable to look up escalation %s", reference_id)
+    return None
+
+
+def update_escalation_status(reference_id: str, status: str) -> dict[str, Any] | None:
+    """Update status of an escalation record (OPEN, IN_PROGRESS, RESOLVED)."""
+    valid_statuses = {"OPEN", "IN_PROGRESS", "RESOLVED"}
+    cleaned_status = status.upper()
+    if cleaned_status not in valid_statuses:
+        return None
+
+    now = datetime.now(UTC).isoformat()
+    try:
+        with _connection() as connection:
+            connection.execute(
+                """
+                UPDATE escalations
+                SET status = ?, updated_at = ?
+                WHERE reference_id = ?
+                """,
+                (cleaned_status, now, reference_id),
+            )
+            connection.commit()
+    except sqlite3.Error:
+        logger.exception("Unable to update escalation %s", reference_id)
+        return None
+    return get_escalation(reference_id)

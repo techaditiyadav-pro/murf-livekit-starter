@@ -1,5 +1,7 @@
 import asyncio
+import json
 import logging
+from pathlib import Path
 from typing import Any
 
 from dotenv import load_dotenv
@@ -19,80 +21,133 @@ from livekit.agents import (
 from livekit.plugins import deepgram, google, murf, noise_cancellation, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+from database import create_escalation as create_escalation_record
+from database import get_farm_alert as get_farm_alert_record
+from database import get_pending_alert_by_farmer as get_pending_alert_by_farmer_record
 from database import lookup_farmer as lookup_farmer_record
+from database import record_call_attempt as record_call_attempt_record
 from database import save_farmer_memory as save_farmer_memory_record
+from database import update_farm_alert as update_farm_alert_record
 
 logger = logging.getLogger("agent")
 
-load_dotenv(".env.local")
+ENV_LOCAL = Path(__file__).resolve().parent.parent / ".env.local"
+if ENV_LOCAL.exists():
+    load_dotenv(ENV_LOCAL)
+else:
+    load_dotenv(".env.local")
 
 SYSTEM_PROMPT = """
 ROLE
 You are KrishiMitra AI, a friendly and helpful voice assistant for farmers. Help with
-crops, irrigation, basic crop care, weather-related farming decisions, and general
-agricultural guidance. Be respectful, patient, practical, and simple. Keep responses short,
-avoid unnecessary technical words, ask one question at a time, and never pretend to know
-something you do not know.
+crops, irrigation, basic crop care, weather-related farming decisions, agricultural guidance,
+and proactive farm alerts. Be respectful, patient, practical, concise, and professional.
 
 LANGUAGE & SCRIPT
-Detect the farmer's language and respond in the same language whenever possible. Hindi must
-always be naturally written in Devanagari script; never write Hindi in Roman/English letters.
-Keep English in English. If the farmer switches languages, follow their latest language.
+Detect the farmer's language and respond in natural Hindi/Hinglish/English.
+When responding in Devanagari Hindi, write naturally. Hinglish phrasing like
+"Namaste Ramesh ji, main KrishiMitra AI se bol rahi hoon" is also welcome.
 
-MEMORY
-The current caller's stable LiveKit identity is available only through the memory tools.
-At the beginning of every conversation call lookup_user before greeting. If the farmer is
-known, greet them by their saved name, use only relevant saved farming information naturally,
-and do not repeat questions already answered in memory. Never invent a memory or claim to
-remember anything that lookup_user did not return. Never expose internal functions, database
-details, raw records, or every saved field.
+MEMORY (DAY 4)
+The current caller's stable LiveKit identity is available through memory tools.
+On inbound calls, call lookup_user before greeting. For returning farmers, greet them naturally
+using remembered facts. Only save new facts with save_user_memory after explicit farmer confirmation.
 
-For a new farmer, greet them, ask their name naturally, then ask relevant farming questions
-such as crop, land size, district, and irrigation only when useful. For a returning farmer,
-greet them, mention one relevant remembered fact naturally, and ask what help they need today.
+OUTBOUND FARM ALERT CALL FLOW (DAY 6)
+When executing an outbound farm alert call:
+1. PROACTIVE GREETING:
+   Greet the farmer proactively using their name:
+   "Namaste [Farmer Name] ji, main KrishiMitra AI se bol rahi hoon. Aapke khet ke sambandh mein ek important farming alert share karna tha."
 
-Before saving ANY new or updated personal/farming information, state what useful information
-you want to remember and why, then ask: "क्या मैं यह जानकारी अगली बार आपकी मदद करने के लिए याद रखूँ?"
-Only call save_user_memory after a clear yes in the current conversation. If the farmer says
-no, is unclear, or changes topic, do not save and do not pressure them. Save only useful
-non-sensitive context: name, language preference, crops grown, land size, district, irrigation
-type, and similar farming preferences. Preserve previous information unless the farmer clearly
-corrects it; prefer new information when they provide an update. Never say it was saved unless
-the tool returns success. If a memory tool fails, continue helping naturally.
+2. SAFE FARMER VERIFICATION:
+   Before revealing detailed farm information, ask the non-sensitive verification question returned by load_farm_alert.
+   Call verify_farmer tool with the farmer's response.
+   NEVER ask for OTP, PIN, password, bank details, Aadhaar, or sensitive financial information.
+   Allow MAXIMUM 2 verification attempts.
+   If verification fails after 2 attempts, call update_farm_alert_status(status="verification_failed", notes="Failed verification") and end call politely without revealing detailed farm info.
+
+3. LOAD & READ THE FARM ALERT:
+   Use load_farm_alert tool to retrieve structured alert details.
+   Explain the alert clearly and naturally as an early warning or demo alert.
+   Example: "Ramesh ji, aapke wheat crop ke liye leaf rust disease ka possible risk detect hua hai. Agle 2-3 din crop ko inspect karna aur preventive steps follow karna important hai."
+   Do NOT present guesses as absolute facts. Use phrases like "possible risk", "early warning", "demo alert".
+
+4. ASK FOR FARMER RESPONSE:
+   Ask: "Kripya batayein, kya aapne apne khet mein aise symptoms dekhe hain?"
+   Listen to natural responses like yes, no, maybe, not sure, will inspect later, busy/call later.
+
+5. UPDATE ALERT STATUS USING TOOL:
+   Call update_farm_alert_status tool with appropriate status:
+   - 'confirmed': Farmer observed symptoms / acknowledged alert
+   - 'needs_inspection': Farmer will inspect field later
+   - 'not_observed': Farmer says no symptoms observed
+   - 'follow_up_required': Farmer is busy / requests follow-up call
+   - 'verification_failed': Farmer failed 2 verification attempts
+
+6. FINAL RESPONSE & CONCLUSION:
+   Provide a concise summary:
+   "Thank you [Farmer Name] ji. Maine aapka response note kar liya hai. Aap pehle crop ko inspect kar lijiye. KrishiMitra AI aapko farming decisions mein support karne ke liye available hai. Dhanyavaad."
 
 SAFETY
-Do not provide dangerous agricultural instructions or false guarantees about yield, weather,
-disease treatment, or financial outcomes. For serious crop disease, pesticide, chemical, or
-other high-risk situations, recommend a qualified local agricultural expert, KVK, or Agriculture
-Officer. For live market prices or real-time weather, explain that you cannot verify them and
-recommend the local mandi or IMD.
+This is a farming demo assistant. Do not make false guarantees or state dangerous pesticide dosages.
+For serious crop diseases or chemical treatments, recommend consulting a local KVK or Krishi Adhikari.
 
-RESPONSE STYLE
-Stay conversational, concise, respectful, and supportive. Prefer practical suggestions and
-clear next steps. Give more detail only when the farmer asks for it.
+HUMAN ESCALATION POLICY (DAY 7)
+- Know when to ask for human help instead of guessing.
+- ESCALATION SCENARIOS:
+  1. SERIOUS CROP PROBLEM: Severe disease, rapidly spreading infection, massive pest attack, severe drying/wilting, devastating crop loss risk, or when you cannot safely diagnose or solve the issue.
+  2. MISSING OR OUTDATED MARKET DATA: When market/mandi prices are unavailable, stale, or unverified. NEVER invent or guess a price. Offer human help instead.
+- PERMISSION IS MANDATORY: BEFORE calling `create_escalation`, ALWAYS ask for the farmer's permission first.
+  Example: "Is problem ke liye main aapki request ek agricultural expert ko bhej sakti hoon. Main sirf aapka naam, problem ka short summary, maine kya check kiya, urgency aur aapki preferred language/follow-up method share karungi. Kya main ye request create kar doon?"
+- IF PERMISSION GRANTED (yes, haan, kar do, okay, please do): Call `create_escalation` tool with permission_granted=True.
+- IF PERMISSION DENIED (no, nahi, don't, mat karo): DO NOT call `create_escalation`. Respect the decision, offer standard safe guidance, and do not press the farmer.
+- CONVEY REFERENCE ID: After `create_escalation` returns a success result with a reference_id (e.g. KM-2026-0001), report the reference ID clearly to the farmer and explain that human support will follow up using their preferred method.
+- DO NOT promise immediate responses (e.g., "within 5 minutes" or "expert will call right now"). State honestly that the support team will follow up when available.
+- NORMAL FARMING QUESTIONS ("Gehu mein paani kab dena chahiye?") MUST NOT trigger human escalation automatically.
+- PRIVACY & SECURITY: NEVER ask for or record OTPs, PINs, passwords, bank account numbers, credit cards, or full chat transcripts.
 """
 
 
 class Assistant(Agent):
-    def __init__(self, user_id: str = "test-user") -> None:
+    def __init__(
+        self,
+        user_id: str = "test-user",
+        alert_id: int | None = None,
+        is_outbound: bool = False,
+    ) -> None:
         super().__init__(instructions=SYSTEM_PROMPT)
         self.user_id = user_id
+        self.alert_id = alert_id
+        self.is_outbound = is_outbound
+        self.current_alert: dict[str, Any] | None = None
+        self.verification_passed: bool = False
+        self.verification_attempts: int = 0
+        self.verification_failed: bool = False
 
     async def on_enter(self) -> None:
-        """Make lookup a tool call before the opening greeting, not prompt injection."""
-        await self.session.generate_reply(
-            instructions=(
-                "This is the beginning of the call. Call lookup_user now, then give the "
-                "appropriate concise greeting based only on the tool result."
+        """Opening prompt trigger for inbound or proactive outbound call."""
+        if self.is_outbound:
+            await self.session.generate_reply(
+                instructions=(
+                    "This is an OUTBOUND TELEPHONY FARM ALERT call. Call load_farm_alert now. "
+                    "Then greet the farmer proactively in Hindi/Hinglish: "
+                    "'Namaste [Farmer Name] ji, main KrishiMitra AI se bol rahi hoon. Aapke khet ke sambandh mein ek important farming alert share karna tha.' "
+                    "Immediately follow with the non-sensitive verification question returned by load_farm_alert."
+                )
             )
-        )
+        else:
+            await self.session.generate_reply(
+                instructions=(
+                    "This is the beginning of the call. Call lookup_user now, then give the "
+                    "appropriate concise greeting based only on the tool result."
+                )
+            )
 
     @function_tool
     async def lookup_user(self, context: RunContext) -> dict[str, Any]:
         """Look up the current caller's saved farming profile at the start of each call.
 
-        Use this before greeting. The caller identity is supplied securely by LiveKit; do not
-        ask the farmer for an ID. Return only the profile needed for a natural greeting.
+        Use this before greeting. Identity is supplied by LiveKit; do not ask the farmer.
         """
         try:
             profile = lookup_farmer_record(self.user_id)
@@ -113,13 +168,17 @@ class Assistant(Agent):
         name: str | None = None,
         language_preference: str | None = None,
         facts: dict[str, str] | None = None,
+        permission_granted: bool = False,
     ) -> dict[str, Any]:
         """Persist consented useful farming details for the current caller.
 
-        Call only after the farmer explicitly agrees in the current conversation. Include only
-        useful non-sensitive facts such as crops_grown, land_size, district, or irrigation_type.
-        Existing facts are merged so an update never creates a duplicate record.
+        Call only after explicit farmer permission in the current conversation.
         """
+        if not permission_granted:
+            return {
+                "status": "consent_required",
+                "message": "Ask the farmer for permission before saving any memory.",
+            }
         try:
             profile = save_farmer_memory_record(
                 self.user_id, name, language_preference, facts or {}
@@ -131,6 +190,224 @@ class Assistant(Agent):
                 "message": "The information could not be saved. Do not claim it was saved.",
             }
         return {"status": "saved", "profile": profile}
+
+    @function_tool
+    async def load_farm_alert(
+        self, context: RunContext, alert_id: int | None = None
+    ) -> dict[str, Any]:
+        """Retrieve structured farm alert details for the current outbound call.
+
+        Returns farmer name, crop, alert type, reason, recommended action, and non-sensitive verification question.
+        """
+        target_id = alert_id or self.alert_id
+        alert = None
+        if target_id is not None:
+            alert = get_farm_alert_record(target_id)
+        if alert is None and self.user_id:
+            alert = get_pending_alert_by_farmer_record(self.user_id)
+        if alert is None:
+            alert = get_farm_alert_record(1)
+
+        if alert is None:
+            return {"status": "not_found", "message": "No farm alert record found."}
+
+        self.current_alert = alert
+        return {
+            "status": "success",
+            "alert": {
+                "id": alert["id"],
+                "farmer_name": alert["farmer_name"],
+                "village": alert["village"],
+                "crop": alert["crop"],
+                "alert_type": alert["alert_type"],
+                "alert_reason": alert["alert_reason"],
+                "recommended_action": alert["recommended_action"],
+                "verification_question": alert["verification_question"],
+                "status": alert["status"],
+            },
+        }
+
+    @function_tool
+    async def verify_farmer(
+        self, context: RunContext, farmer_id: str, verification_answer: str
+    ) -> dict[str, Any]:
+        """Verify the farmer's response against the non-sensitive verification question.
+
+        Max 2 attempts allowed. Do not ask for sensitive info (OTP, PIN, Bank details).
+        """
+        if self.verification_passed:
+            return {"status": "already_verified"}
+
+        target_id = self.alert_id or (
+            self.current_alert["id"] if self.current_alert else 1
+        )
+        alert = self.current_alert or get_farm_alert_record(target_id)
+        if not alert:
+            return {"status": "error", "message": "Alert record not loaded."}
+
+        expected_answers = [
+            ans.strip().lower() for ans in alert["verification_answer"].split(",")
+        ]
+        provided = verification_answer.strip().lower()
+
+        is_match = any(
+            expected in provided or provided in expected
+            for expected in expected_answers
+        )
+
+        if is_match:
+            self.verification_passed = True
+            return {"status": "verified", "message": "Verification successful."}
+
+        self.verification_attempts += 1
+        if self.verification_attempts >= 2:
+            self.verification_failed = True
+            update_farm_alert_record(
+                alert["id"],
+                status="verification_failed",
+                notes="Failed verification after 2 attempts",
+                last_call_outcome="Verification failed",
+            )
+            return {
+                "status": "failed",
+                "attempts_made": self.verification_attempts,
+                "message": "Verification failed maximum attempts reached.",
+            }
+        return {
+            "status": "incorrect",
+            "attempts_made": self.verification_attempts,
+            "attempts_remaining": 2 - self.verification_attempts,
+            "message": "Incorrect response. Please try one more time.",
+        }
+
+    @function_tool
+    async def update_farm_alert_status(
+        self,
+        context: RunContext,
+        status: str,
+        notes: str = "",
+        alert_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Update the farm alert status in SQLite database after farmer response.
+
+        Allowed statuses: 'confirmed', 'needs_inspection', 'not_observed',
+        'follow_up_required', 'verification_failed'.
+        """
+        valid_statuses = {
+            "confirmed",
+            "needs_inspection",
+            "not_observed",
+            "follow_up_required",
+            "verification_failed",
+        }
+        if status not in valid_statuses:
+            return {
+                "status": "error",
+                "message": f"Invalid status '{status}'. Must be one of {list(valid_statuses)}",
+            }
+
+        target_id = (
+            alert_id
+            or self.alert_id
+            or (self.current_alert["id"] if self.current_alert else 1)
+        )
+        updated = update_farm_alert_record(
+            target_id,
+            status=status,
+            notes=notes,
+            last_call_outcome=f"Call completed with status: {status}",
+        )
+
+        # Merge findings into Day 4 memory system
+        try:
+            farmer_name = (self.current_alert or {}).get("farmer_name") or "Ramesh"
+            crop = (self.current_alert or {}).get("crop") or "Wheat"
+            save_farmer_memory_record(
+                self.user_id,
+                farmer_name,
+                "hi",
+                {
+                    "last_alert_discussed": (self.current_alert or {}).get(
+                        "alert_type"
+                    ),
+                    "crop": crop,
+                    "last_alert_status": status,
+                    "last_alert_notes": notes,
+                },
+            )
+        except Exception:
+            logger.exception("Failed to update Day 4 memory during alert status update")
+
+        return {"status": "updated", "record": updated}
+
+    @function_tool
+    async def log_call_outcome(
+        self,
+        context: RunContext,
+        outcome: str,
+        notes: str = "",
+        alert_id: int | None = None,
+    ) -> dict[str, Any]:
+        """Log the call outcome and notes to the database."""
+        target_id = (
+            alert_id
+            or self.alert_id
+            or (self.current_alert["id"] if self.current_alert else 1)
+        )
+        record_call_attempt_record(target_id, outcome=f"{outcome}: {notes}")
+        return {"status": "logged", "outcome": outcome}
+
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        reason: str,
+        problem_summary: str,
+        what_agent_checked: str = "User requested human support.",
+        urgency: str = "medium",
+        language: str = "Hindi",
+        preferred_follow_up_method: str = "Phone Call",
+        farmer_name: str | None = None,
+        permission_granted: bool = False,
+    ) -> dict[str, Any]:
+        """Create a human help escalation request when expert human agricultural support is required.
+
+        MUST ONLY be called AFTER the farmer gives explicit permission in conversation.
+        Reasons: 'SERIOUS_CROP_PROBLEM', 'MARKET_DATA_UNAVAILABLE_OR_STALE', 'OTHER'.
+        Urgency: 'low', 'medium', 'high', 'emergency'.
+        """
+        if not permission_granted:
+            return {
+                "status": "permission_denied",
+                "message": "Permission was not granted by the farmer. Do NOT create the escalation.",
+            }
+
+        name = farmer_name or "Farmer"
+        try:
+            profile = lookup_farmer_record(self.user_id)
+            if profile and profile.get("name"):
+                name = profile["name"]
+        except Exception:
+            pass
+
+        try:
+            res = create_escalation_record(
+                farmer_name=name,
+                reason=reason,
+                problem_summary=problem_summary,
+                what_agent_checked=what_agent_checked,
+                urgency=urgency,
+                language=language,
+                preferred_follow_up_method=preferred_follow_up_method,
+                permission_granted=permission_granted,
+            )
+            return res
+        except Exception:
+            logger.exception("Failed to execute create_escalation tool")
+            return {
+                "status": "error",
+                "message": "Request create karne mein technical problem aa rahi hai. Main aapko galat confirmation nahi dungi.",
+            }
 
 
 server = AgentServer()
@@ -149,7 +426,41 @@ async def my_agent(ctx: JobContext) -> None:
     await ctx.connect()
     participant = await ctx.wait_for_participant()
     user_id = participant.identity
-    logger.info("Starting KrishiMitra session for caller %s", user_id)
+
+    # Detect outbound SIP call / alert session parameters
+    alert_id = None
+    is_outbound = False
+
+    if participant.metadata:
+        try:
+            meta = json.loads(participant.metadata)
+            alert_id = meta.get("alert_id")
+            if meta.get("call_mode") == "outbound_farm_alert":
+                is_outbound = True
+        except Exception:
+            pass
+
+    import contextlib
+
+    if not is_outbound and participant.attributes:
+        if participant.attributes.get("call_mode") == "outbound_farm_alert":
+            is_outbound = True
+        if participant.attributes.get("alert_id"):
+            with contextlib.suppress(ValueError):
+                alert_id = int(participant.attributes["alert_id"])
+
+    if not is_outbound and (
+        "outbound" in ctx.room.name.lower()
+        or participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+    ):
+        is_outbound = True
+
+    logger.info(
+        "Starting KrishiMitra session for caller %s (outbound=%s, alert_id=%s)",
+        user_id,
+        is_outbound,
+        alert_id,
+    )
 
     session = AgentSession(
         stt=deepgram.STT(model="nova-3", language="multi"),
@@ -166,7 +477,7 @@ async def my_agent(ctx: JobContext) -> None:
     )
 
     await session.start(
-        agent=Assistant(user_id=user_id),
+        agent=Assistant(user_id=user_id, alert_id=alert_id, is_outbound=is_outbound),
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(

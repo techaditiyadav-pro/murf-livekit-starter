@@ -14,9 +14,13 @@ const eslintConfig = [
     'next/core-web-vitals',
     'next/typescript',
     'plugin:import/recommended',
-    'prettier',
-    'plugin:prettier/recommended'
+    'prettier'
   ),
+  {
+    rules: {
+      'prettier/prettier': 'off',
+    },
+  },
 ];
 
 export default eslintConfig;

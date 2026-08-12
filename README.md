@@ -260,6 +260,49 @@ For deeper documentation on each part, see:
 
 ---
 
+## Day 6: Outbound Farm Alert Voice Agent
+
+KrishiMitra AI features a proactive **Outbound SIP Telephony Agent** for Day 6 of the Murf AI Challenge. Instead of waiting for incoming web calls, KrishiMitra AI calls farmers through LiveKit SIP Telephony to deliver critical farm alerts (e.g. crop diseases, pest warnings, irrigation reminders).
+
+### Key Highlights
+- **Linphone SIP Outbound Dialing**: Initiates real SIP calls via `linphone-trunk` using LiveKit Cloud API.
+- **Proactive Greeting**: Agent greets the farmer directly on call connection in natural Hindi/Hinglish.
+- **Safe Non-Sensitive Verification**: Asks simple non-sensitive crop confirmation questions (max 2 attempts) before revealing alert details.
+- **Function Tools**:
+  - `load_farm_alert()`: Retrieves structured mock alert details from SQLite DB (`krishimitra.db`).
+  - `verify_farmer()`: Validates response against crop verification data.
+  - `update_farm_alert_status()`: Persists status (`confirmed`, `needs_inspection`, `not_observed`, `follow_up_required`, `verification_failed`) in SQLite and merges findings into Day 4 memory.
+- **Real-Time UI Dashboard**: Embedded Next.js dashboard showing active alerts, call outcomes, verification statuses, and timestamps.
+
+### How to Run & Test (3 Scenarios)
+
+1. **Start the Outbound Agent Worker**:
+   ```bash
+   cd backend
+   uv run python src/telephony/outbound/agent.py dev
+   ```
+
+2. **Trigger Outbound Calls via CLI**:
+   - **Scenario 1 — Verified + Alert Acknowledged (Ramesh / Wheat)**:
+     ```bash
+     uv run python src/telephony/outbound/dial.py --to aditiyadav12 --alert-id 1
+     ```
+     *Flow*: Farmer confirms Wheat crop -> Agent reads Leaf Rust alert -> Farmer acknowledges symptoms -> DB status becomes `confirmed`.
+
+   - **Scenario 2 — Verified + Issue Not Observed (Suresh / Soybean)**:
+     ```bash
+     uv run python src/telephony/outbound/dial.py --to aditiyadav12 --alert-id 2
+     ```
+     *Flow*: Farmer confirms Soybean crop -> Agent reads Stem Borer warning -> Farmer states no symptoms observed -> DB status becomes `not_observed`.
+
+   - **Scenario 3 — Verification Failure (Mahesh / Rice)**:
+     ```bash
+     uv run python src/telephony/outbound/dial.py --to aditiyadav12 --alert-id 3
+     ```
+     *Flow*: Farmer answers wrong crop twice -> Agent politely refuses detailed info & ends call -> DB status becomes `verification_failed`.
+
+---
+
 ## Links
 
 - [Murf API Docs](https://murf.ai/api/docs)
@@ -276,3 +319,4 @@ For deeper documentation on each part, see:
 ## License
 
 MIT
+

@@ -1,4 +1,7 @@
-import { MessageCircle, Mic, Sprout } from 'lucide-react';
+import Link from 'next/link';
+import { Headset, MessageCircle, Mic, Sprout } from 'lucide-react';
+import { Day6AlertDashboard } from '@/components/app/day6-alert-dashboard';
+import { NavHeader } from '@/components/app/nav-header';
 import { Button } from '@/components/ui/button';
 
 interface WelcomeViewProps {
@@ -18,6 +21,7 @@ export const WelcomeView = ({
   ref,
 }: React.ComponentProps<'div'> & WelcomeViewProps) => (
   <div ref={ref} className="w-full">
+    <NavHeader />
     <section className="farm-shell mx-auto w-full max-w-5xl px-4 py-8 text-center sm:px-6">
       <div className="farm-card overflow-hidden px-5 py-8 sm:px-10 sm:py-10">
         <div className="bg-primary text-primary-foreground mx-auto flex size-16 items-center justify-center rounded-3xl shadow-lg">
@@ -60,11 +64,11 @@ export const WelcomeView = ({
             <p className="text-muted-foreground mt-1 text-sm">Please wait while we connect you.</p>
           </div>
         ) : (
-          <>
+          <div className="mt-8 flex flex-col items-center gap-3">
             <Button
               size="lg"
               onClick={onStartCall}
-              className="mt-8 min-h-14 w-full max-w-md rounded-2xl text-base font-bold shadow-lg sm:w-96"
+              className="min-h-14 w-full max-w-md rounded-2xl text-base font-bold shadow-lg sm:w-96"
             >
               <Mic /> {startButtonText}
             </Button>
@@ -72,12 +76,21 @@ export const WelcomeView = ({
               size="lg"
               variant="outline"
               onClick={onStartChat}
-              className="mt-3 min-h-14 w-full max-w-md rounded-2xl text-base font-bold sm:w-96"
+              className="min-h-14 w-full max-w-md rounded-2xl text-base font-bold sm:w-96"
             >
               <MessageCircle /> 💬 Chat / लिखकर पूछें
             </Button>
-            <p className="text-primary mt-4 text-sm font-semibold">● Ready to help you</p>
-          </>
+            <Link href="/help" className="w-full max-w-md sm:w-96">
+              <Button
+                size="lg"
+                variant="secondary"
+                className="min-h-14 w-full rounded-2xl border border-amber-300 bg-amber-100 text-base font-bold text-amber-900 hover:bg-amber-200"
+              >
+                <Headset className="size-5 text-amber-700" /> 🎧 Human Help / मानव सहायता
+              </Button>
+            </Link>
+            <p className="text-primary mt-2 text-sm font-semibold">● Ready to help you</p>
+          </div>
         )}
         {error && (
           <Button
@@ -103,6 +116,7 @@ export const WelcomeView = ({
           <li>“Fasal mein keede lag gaye hain, kya karun?”</li>
         </ul>
       </div>
+      <Day6AlertDashboard />
     </section>
   </div>
 );
