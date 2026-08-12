@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 from typing import Any
 
 from dotenv import load_dotenv
@@ -21,6 +22,8 @@ from livekit.plugins import deepgram, google, murf, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
 from database import FarmerRepository
+from escalation_api import start_escalation_api
+from market_data import MarketDataClient
 from telephony.outbound.policy import is_opt_out_request
 from weather_data import WeatherDataClient
 
@@ -75,6 +78,25 @@ local Mandi, Krishi Vigyan Kendra, or Agriculture Officer.
 
 Be respectful, patient, encouraging and farmer-friendly.
 
+KRISHIMITRA HUMAN ESCALATION POLICY:
+- Do not try to solve every problem yourself. Escalate only (1) serious crop
+  problems: rapid disease spread, major pest infestation, widespread damage,
+  severe drying/wilting, likely major loss, or any case you cannot safely assess;
+  and (2) missing, unavailable, invalid, or stale mandi/market price data.
+- Use get_market_price(crop, mandi) for any mandi-price question. Never invent,
+  estimate, or present an unverified market price. Its unavailable result means
+  human help is needed.
+- Before calling create_escalation, explain why help is needed and ask explicit
+  permission. Say that only name (if known), a short problem summary, what you
+  checked, urgency, language, and preferred follow-up method will be shared.
+  Wait for a clear yes/haan/okay/kar do before calling the tool. A no means do
+  not create anything and do not pressure the farmer.
+- Keep the summary short and useful; never include OTPs, PINs, passwords, bank
+  details, account/card numbers, or a full conversation. Do not create duplicate
+  requests. After success give the reference ID and say support will follow up
+  when available, without promising a response time.
+- Normal crop-care questions remain normal assistance and must not be escalated.
+
 For an outbound demo weather-alert call, clearly say that you are KrishiMitra AI,
 an automated agricultural assistant, and that the alert uses local/demo weather
 data rather than live weather. If the farmer says stop, band kijiye, call mat
@@ -101,6 +123,9 @@ class Assistant(Agent):
         self.room_name = room_name
         self.livekit_api = livekit_api
         self._opt_out_end_task: asyncio.Task[None] | None = None
+        self._escalation_permission_pending = False
+        self._escalation_permission_granted = False
+        self._pending_escalation_reason: str | None = None
 
         memory_context = ""
 
@@ -176,12 +201,59 @@ class Assistant(Agent):
 
     async def on_user_turn_completed(self, turn_ctx, new_message) -> None:
         """Make explicit outbound-call opt-outs non-optional for the LLM."""
+        text = new_message.text_content or ""
         if self.outbound_alert and is_opt_out_request(new_message.text_content or ""):
             new_message.content.append(
                 "SYSTEM INSTRUCTION: This is an explicit opt-out. Immediately "
                 "call opt_out_of_outbound_calls, briefly confirm in Hindi/Hinglish, "
                 "and do not continue the weather-alert conversation."
             )
+        if self._escalation_permission_pending and self._is_affirmative(text):
+            self._escalation_permission_granted = True
+            reason = self._pending_escalation_reason or "SERIOUS_CROP_PROBLEM"
+            new_message.content.append(
+                f"SYSTEM INSTRUCTION: The farmer granted permission for human escalation. "
+                f"Call the create_escalation tool now with reason {reason}, a short sanitized problem summary, "
+                "what was checked, urgency, language, and preferred follow-up method."
+            )
+        elif self._escalation_permission_pending and self._is_negative(text):
+            self._escalation_permission_pending = False
+            self._escalation_permission_granted = False
+            self._pending_escalation_reason = None
+            new_message.content.append(
+                "SYSTEM INSTRUCTION: The farmer declined escalation. Respect that "
+                "choice, do not call create_escalation, and continue normal help if possible."
+            )
+        elif self._is_serious_crop_problem(text):
+            self._escalation_permission_pending = True
+            self._pending_escalation_reason = "SERIOUS_CROP_PROBLEM"
+            new_message.content.append(
+                "SYSTEM INSTRUCTION: This appears to be a serious crop problem. "
+                "Do not diagnose or create a request yet. Briefly explain why expert "
+                "help is needed and ask explicit permission to share a short summary."
+            )
+
+    @staticmethod
+    def _is_affirmative(text: str) -> bool:
+        return bool(
+            re.search(
+                r"\b(yes|yeah|okay|ok|haan|han|ha|kar do|bhej do|send it|please do)\b",
+                text,
+                re.I,
+            )
+        )
+
+    @staticmethod
+    def _is_negative(text: str) -> bool:
+        return bool(
+            re.search(r"\b(no|nahi|nahin|mat karo|don't|do not|not now)\b", text, re.I)
+        )
+
+    @staticmethod
+    def _is_serious_crop_problem(text: str) -> bool:
+        serious = r"(rapid|tezi se|bahut tezi|spread|fail rahi|widespread|puri fasal|major|bahut zyada|severe|devastat|kharab ho rahi|sookh|drying|wilting)"
+        crop = r"(crop|fasal|gehun|gehu|wheat|pest|keede|disease|bimari)"
+        return bool(re.search(serious, text, re.I) and re.search(crop, text, re.I))
 
     @function_tool
     async def lookup_farmer(
@@ -216,7 +288,7 @@ class Assistant(Agent):
         context: RunContext,
         name: str | None = None,
         language_preference: str | None = None,
-        facts: dict[str, Any] | None = None,
+        facts_json: str = "{}",
     ) -> str:
         """
         Save farmer information only after explicit consent.
@@ -225,11 +297,14 @@ class Assistant(Agent):
         logger.info("Saving farmer memory for user_id=%s", self.user_id)
 
         try:
+            facts = json.loads(facts_json)
+            if not isinstance(facts, dict):
+                return "Memory save failed. Use a JSON object for facts."
             farmer = self.repository.save_farmer_memory(
                 self.user_id,
                 name,
                 language_preference,
-                facts or {},
+                facts,
             )
         except Exception:
             logger.exception("Farmer memory save failed")
@@ -263,6 +338,66 @@ class Assistant(Agent):
             WeatherDataClient().get_weather_by_district, district
         )
         return json.dumps(result, ensure_ascii=False)
+
+    @function_tool
+    async def get_market_price(self, context: RunContext, crop: str, mandi: str) -> str:
+        """Check a verified current mandi price. Never use it to guess a price."""
+        result = await asyncio.to_thread(
+            MarketDataClient().get_market_price, crop, mandi
+        )
+        self._escalation_permission_pending = True
+        self._pending_escalation_reason = "MARKET_DATA_UNAVAILABLE_OR_STALE"
+        return json.dumps(result, ensure_ascii=False)
+
+    @function_tool
+    async def create_escalation(
+        self,
+        context: RunContext,
+        reason: str,
+        problem_summary: str,
+        what_agent_checked: str,
+        urgency: str = "high",
+        language: str | None = None,
+        preferred_follow_up_method: str | None = None,
+    ) -> str:
+        """Create a human-support request only after the farmer explicitly agrees."""
+        if not self._escalation_permission_granted:
+            return (
+                "Permission has not been confirmed. Do not create an escalation. "
+                "Ask the farmer for clear permission first."
+            )
+        if reason == "MARKET_DATA_UNAVAILABLE_OR_STALE":
+            urgency = "medium"
+        try:
+            memory = (
+                self.farmer_memory or self.repository.lookup_farmer(self.user_id) or {}
+            )
+            record, duplicate = self.repository.create_escalation(
+                farmer_name=memory.get("name"),
+                farmer_identifier=self.user_id if self.user_id != "anonymous" else None,
+                reason=reason,
+                problem_summary=problem_summary,
+                what_agent_checked=what_agent_checked,
+                urgency=urgency,
+                language=language or memory.get("language_preference"),
+                preferred_follow_up_method=preferred_follow_up_method,
+            )
+        except Exception:
+            logger.exception("Escalation creation failed")
+            return (
+                "Escalation creation failed. Tell the farmer honestly that there is "
+                "a technical problem and do not say the request was created."
+            )
+        finally:
+            self._escalation_permission_pending = False
+            self._escalation_permission_granted = False
+        if duplicate:
+            return f"An open request already exists. Reference ID: {record['reference_id']}."
+        return (
+            f"Request created successfully. Reference ID: {record['reference_id']}. "
+            "Tell the farmer human agricultural support will review it when available "
+            "and follow up using the preferred method; do not promise a time."
+        )
 
     @function_tool
     async def opt_out_of_outbound_calls(self, context: RunContext) -> str:
@@ -299,6 +434,8 @@ class Assistant(Agent):
 
 
 server = AgentServer()
+
+start_escalation_api()
 
 
 def prewarm(proc: JobProcess):
