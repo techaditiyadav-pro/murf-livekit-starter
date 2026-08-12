@@ -1,6 +1,7 @@
 """Persistent, privacy-conscious storage for KrishiMitra farmer profiles."""
 
 import json
+import re
 import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
@@ -35,6 +36,151 @@ class FarmerRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS escalations (
+                    reference_id TEXT PRIMARY KEY,
+                    farmer_name TEXT,
+                    farmer_identifier TEXT,
+                    reason TEXT NOT NULL,
+                    problem_summary TEXT NOT NULL,
+                    what_agent_checked TEXT NOT NULL,
+                    urgency TEXT NOT NULL CHECK (urgency IN ('low', 'medium', 'high', 'emergency')),
+                    language TEXT NOT NULL,
+                    preferred_follow_up_method TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'OPEN' CHECK (status IN ('OPEN', 'IN_PROGRESS', 'RESOLVED')),
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
+
+    @staticmethod
+    def _sanitize_summary(value: str) -> str:
+        """Remove secrets and keep human-facing escalation notes concise."""
+        value = " ".join(value.split())[:600]
+        patterns = (
+            r"(?i)\b(?:otp|pin|password|passcode)\s*[:=-]?\s*\S+",
+            r"(?i)\b(?:account|bank|card)\s*(?:number|no\.?|details?)?\s*[:=-]?\s*[\d -]{6,}",
+            r"\b(?:\d[ -]?){12,19}\b",
+        )
+        for pattern in patterns:
+            value = re.sub(pattern, "[redacted]", value)
+        return value or "Farmer requested human assistance."
+
+    def _next_escalation_reference(self, connection: sqlite3.Connection) -> str:
+        year = datetime.now(UTC).year
+        prefix = f"KM-{year}-"
+        row = connection.execute(
+            "SELECT reference_id FROM escalations WHERE reference_id LIKE ? "
+            "ORDER BY reference_id DESC LIMIT 1",
+            (f"{prefix}%",),
+        ).fetchone()
+        sequence = int(row["reference_id"].rsplit("-", 1)[1]) + 1 if row else 1
+        return f"{prefix}{sequence:04d}"
+
+    def create_escalation(
+        self,
+        *,
+        farmer_name: str | None,
+        farmer_identifier: str | None,
+        reason: str,
+        problem_summary: str,
+        what_agent_checked: str,
+        urgency: str,
+        language: str | None,
+        preferred_follow_up_method: str | None,
+    ) -> tuple[dict[str, Any], bool]:
+        """Create an OPEN request, or return the matching open request."""
+        allowed_reasons = {
+            "SERIOUS_CROP_PROBLEM",
+            "MARKET_DATA_UNAVAILABLE_OR_STALE",
+            "OTHER",
+        }
+        if reason not in allowed_reasons:
+            raise ValueError("Unsupported escalation reason")
+        if urgency not in {"low", "medium", "high", "emergency"}:
+            raise ValueError("Unsupported urgency")
+
+        summary = self._sanitize_summary(problem_summary)
+        checked = self._sanitize_summary(what_agent_checked)
+        identifier = (farmer_identifier or "").strip() or None
+        with self._connect() as connection:
+            if identifier:
+                duplicate = connection.execute(
+                    "SELECT * FROM escalations WHERE farmer_identifier = ? AND reason = ? "
+                    "AND problem_summary = ? AND status = 'OPEN' ORDER BY created_at DESC LIMIT 1",
+                    (identifier, reason, summary),
+                ).fetchone()
+                if duplicate:
+                    return self._escalation_dict(duplicate), True
+            reference_id = self._next_escalation_reference(connection)
+            record = {
+                "reference_id": reference_id,
+                "farmer_name": (
+                    self._sanitize_summary(farmer_name)
+                    if farmer_name and farmer_name.strip()
+                    else None
+                ),
+                "farmer_identifier": identifier,
+                "reason": reason,
+                "problem_summary": summary,
+                "what_agent_checked": checked,
+                "urgency": urgency,
+                "language": (language or "not specified").strip()[:40],
+                "preferred_follow_up_method": (
+                    preferred_follow_up_method or "not specified"
+                ).strip()[:80],
+                "status": "OPEN",
+                "created_at": datetime.now(UTC).isoformat(),
+            }
+            connection.execute(
+                """
+                INSERT INTO escalations (
+                    reference_id, farmer_name, farmer_identifier, reason,
+                    problem_summary, what_agent_checked, urgency, language,
+                    preferred_follow_up_method, status, created_at
+                ) VALUES (
+                    :reference_id, :farmer_name, :farmer_identifier, :reason,
+                    :problem_summary, :what_agent_checked, :urgency, :language,
+                    :preferred_follow_up_method, :status, :created_at
+                )
+                """,
+                record,
+            )
+        return record, False
+
+    @staticmethod
+    def _escalation_dict(row: sqlite3.Row) -> dict[str, Any]:
+        return dict(row)
+
+    def list_escalations(self) -> list[dict[str, Any]]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                "SELECT reference_id, farmer_name, reason, problem_summary, "
+                "what_agent_checked, urgency, language, preferred_follow_up_method, "
+                "status, created_at FROM escalations "
+                "ORDER BY CASE status WHEN 'OPEN' THEN 0 WHEN 'IN_PROGRESS' THEN 1 ELSE 2 END, "
+                "created_at DESC"
+            ).fetchall()
+        return [self._escalation_dict(row) for row in rows]
+
+    def update_escalation_status(
+        self, reference_id: str, status: str
+    ) -> dict[str, Any] | None:
+        if status not in {"OPEN", "IN_PROGRESS", "RESOLVED"}:
+            raise ValueError("Unsupported escalation status")
+        with self._connect() as connection:
+            connection.execute(
+                "UPDATE escalations SET status = ? WHERE reference_id = ?",
+                (status, reference_id),
+            )
+            row = connection.execute(
+                "SELECT reference_id, farmer_name, reason, problem_summary, "
+                "what_agent_checked, urgency, language, preferred_follow_up_method, "
+                "status, created_at FROM escalations WHERE reference_id = ?",
+                (reference_id,),
+            ).fetchone()
+        return self._escalation_dict(row) if row else None
 
     def lookup_farmer(self, user_id: str) -> dict[str, Any] | None:
         with self._connect() as connection:
