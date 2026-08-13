@@ -25,9 +25,11 @@ from database import create_escalation as create_escalation_record
 from database import get_farm_alert as get_farm_alert_record
 from database import get_pending_alert_by_farmer as get_pending_alert_by_farmer_record
 from database import lookup_farmer as lookup_farmer_record
+from database import record_call_analytics as record_call_analytics_record
 from database import record_call_attempt as record_call_attempt_record
 from database import save_farmer_memory as save_farmer_memory_record
 from database import update_farm_alert as update_farm_alert_record
+from weather_data import WeatherDataClient
 
 logger = logging.getLogger("agent")
 
@@ -105,7 +107,15 @@ HUMAN ESCALATION POLICY (DAY 7)
 - DO NOT promise immediate responses (e.g., "within 5 minutes" or "expert will call right now"). State honestly that the support team will follow up when available.
 - NORMAL FARMING QUESTIONS ("Gehu mein paani kab dena chahiye?") MUST NOT trigger human escalation automatically.
 - PRIVACY & SECURITY: NEVER ask for or record OTPs, PINs, passwords, bank account numbers, credit cards, or full chat transcripts.
+
+CALL ANALYTICS & QUERY LOGGING (DAY 8)
+- Call `get_weather_info` when asked for weather details or weather-based crop advice.
+- Call `mark_query_answered` whenever you provide useful answers to farming or crop questions.
+- Call `create_escalation` when creating an expert escalation.
+- Call `update_farm_alert_status` during outbound alert calls.
+Calling these tools records that the farmer's request was successfully fulfilled.
 """
+
 
 
 class Assistant(Agent):
@@ -123,6 +133,9 @@ class Assistant(Agent):
         self.verification_passed: bool = False
         self.verification_attempts: int = 0
         self.verification_failed: bool = False
+        self.success_condition_met: bool = False
+        self.success_condition_description: str = ""
+        self.failure_reason: str = ""
 
     async def on_enter(self) -> None:
         """Opening prompt trigger for inbound or proactive outbound call."""
@@ -142,6 +155,35 @@ class Assistant(Agent):
                     "appropriate concise greeting based only on the tool result."
                 )
             )
+
+    @function_tool
+    async def get_weather_info(
+        self, context: RunContext, district: str
+    ) -> dict[str, Any]:
+        """Look up agricultural weather data, forecasts, and farming advice for a district.
+
+        Call this whenever a farmer asks for weather details or weather-related farming advice.
+        """
+        client = WeatherDataClient()
+        res = client.get_weather_by_district(district)
+        if res.get("status") == "success":
+            self.success_condition_met = True
+            self.success_condition_description = (
+                f"Weather information provided for {district}"
+            )
+        return res
+
+    @function_tool
+    async def mark_query_answered(
+        self, context: RunContext, topic: str
+    ) -> dict[str, Any]:
+        """Mark that the farmer's crop/farm query or request has been successfully answered.
+
+        Call this after providing requested farming info, crop guidance, or answering farmer questions.
+        """
+        self.success_condition_met = True
+        self.success_condition_description = f"Query answered: {topic}"
+        return {"status": "success", "message": f"Recorded success for topic: {topic}"}
 
     @function_tool
     async def lookup_user(self, context: RunContext) -> dict[str, Any]:
@@ -318,6 +360,12 @@ class Assistant(Agent):
             last_call_outcome=f"Call completed with status: {status}",
         )
 
+        if status != "verification_failed":
+            self.success_condition_met = True
+            self.success_condition_description = f"Farm alert updated: {status}"
+        else:
+            self.failure_reason = "Farm alert verification failed"
+
         # Merge findings into Day 4 memory system
         try:
             farmer_name = (self.current_alert or {}).get("farmer_name") or "Ramesh"
@@ -401,6 +449,12 @@ class Assistant(Agent):
                 preferred_follow_up_method=preferred_follow_up_method,
                 permission_granted=permission_granted,
             )
+            if res.get("status") == "success":
+                self.success_condition_met = True
+                ref_id = res.get("reference_id", "")
+                self.success_condition_description = (
+                    f"Human help escalation created (ID: {ref_id})"
+                )
             return res
         except Exception:
             logger.exception("Failed to execute create_escalation tool")
@@ -476,20 +530,54 @@ async def my_agent(ctx: JobContext) -> None:
         preemptive_generation=True,
     )
 
-    await session.start(
-        agent=Assistant(user_id=user_id, alert_id=alert_id, is_outbound=is_outbound),
-        room=ctx.room,
-        room_options=room_io.RoomOptions(
-            audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: (
-                    noise_cancellation.BVCTelephony()
-                    if params.participant.kind
-                    == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
-                    else noise_cancellation.BVC()
+    assistant = Assistant(user_id=user_id, alert_id=alert_id, is_outbound=is_outbound)
+    from datetime import UTC, datetime
+
+    started_at = datetime.now(UTC)
+
+    try:
+        await session.start(
+            agent=assistant,
+            room=ctx.room,
+            room_options=room_io.RoomOptions(
+                audio_input=room_io.AudioInputOptions(
+                    noise_cancellation=lambda params: (
+                        noise_cancellation.BVCTelephony()
+                        if params.participant.kind
+                        == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+                        else noise_cancellation.BVC()
+                    ),
                 ),
             ),
-        ),
-    )
+        )
+    finally:
+        ended_at = datetime.now(UTC)
+        duration = int((ended_at - started_at).total_seconds())
+        channel = "sip" if is_outbound else "browser"
+        outcome = "SUCCESS" if assistant.success_condition_met else "FAILED"
+        failure_reason = (
+            ""
+            if assistant.success_condition_met
+            else (
+                assistant.failure_reason
+                or "Call ended before requested information or escalation was completed"
+            )
+        )
+        success_condition = (
+            assistant.success_condition_description
+            if assistant.success_condition_met
+            else ""
+        )
+        record_call_analytics_record(
+            call_id=ctx.room.name or f"call-{int(started_at.timestamp())}",
+            started_at=started_at.isoformat(),
+            ended_at=ended_at.isoformat(),
+            duration_seconds=duration,
+            channel=channel,
+            outcome=outcome,
+            failure_reason=failure_reason,
+            success_condition=success_condition,
+        )
 
     chat_tasks: set[asyncio.Task[None]] = set()
 
@@ -517,3 +605,4 @@ async def my_agent(ctx: JobContext) -> None:
 
 if __name__ == "__main__":
     cli.run_app(server)
+

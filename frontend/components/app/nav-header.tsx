@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Headset, LayoutDashboard, Sprout } from 'lucide-react';
+import { BarChart3, Headset, LayoutDashboard, Sprout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 export function NavHeader() {
@@ -24,6 +24,17 @@ export function NavHeader() {
         </Link>
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <Link href="/analytics">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-border flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold sm:text-sm"
+            >
+              <BarChart3 className="size-4 text-emerald-600" />
+              <span className="hidden sm:inline">Analytics</span>
+            </Button>
+          </Link>
+
           <Link href="/help">
             <Button
               variant="default"
@@ -42,7 +53,7 @@ export function NavHeader() {
               className="border-border flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold sm:text-sm"
             >
               <LayoutDashboard className="size-4" />
-              <span className="hidden sm:inline">Dashboard</span>
+              <span className="hidden sm:inline">Escalations</span>
             </Button>
           </Link>
         </div>

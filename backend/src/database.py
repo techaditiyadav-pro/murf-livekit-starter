@@ -67,6 +67,22 @@ def _connection() -> sqlite3.Connection:
         )
         """
     )
+    connection.execute(
+        """
+        CREATE TABLE IF NOT EXISTS call_analytics (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            call_id TEXT UNIQUE NOT NULL,
+            started_at TEXT NOT NULL,
+            ended_at TEXT NOT NULL,
+            duration_seconds INTEGER NOT NULL DEFAULT 0,
+            channel TEXT NOT NULL DEFAULT 'browser',
+            outcome TEXT NOT NULL,
+            failure_reason TEXT DEFAULT '',
+            success_condition TEXT DEFAULT '',
+            created_at TEXT NOT NULL
+        )
+        """
+    )
     _seed_farm_alerts_if_empty(connection)
     return connection
 
@@ -516,3 +532,121 @@ def update_escalation_status(reference_id: str, status: str) -> dict[str, Any] |
         logger.exception("Unable to update escalation %s", reference_id)
         return None
     return get_escalation(reference_id)
+
+
+def record_call_analytics(
+    call_id: str,
+    started_at: str,
+    ended_at: str,
+    duration_seconds: int,
+    channel: str,
+    outcome: str,
+    failure_reason: str = "",
+    success_condition: str = "",
+) -> dict[str, Any]:
+    """Record a completed call outcome (SUCCESS or FAILED) into call_analytics table."""
+    now = datetime.now(UTC).isoformat()
+    cleaned_outcome = outcome.upper()
+    if cleaned_outcome not in {"SUCCESS", "FAILED"}:
+        cleaned_outcome = "FAILED"
+
+    cleaned_channel = channel.lower() if channel else "browser"
+    if cleaned_channel not in {"browser", "sip"}:
+        cleaned_channel = "browser"
+
+    cleaned_reason = sanitize_text(failure_reason or "")
+    cleaned_condition = sanitize_text(success_condition or "")
+
+    try:
+        with _connection() as connection:
+            connection.execute(
+                """
+                INSERT INTO call_analytics (
+                    call_id, started_at, ended_at, duration_seconds,
+                    channel, outcome, failure_reason, success_condition, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(call_id) DO UPDATE SET
+                    started_at = excluded.started_at,
+                    ended_at = excluded.ended_at,
+                    duration_seconds = excluded.duration_seconds,
+                    channel = excluded.channel,
+                    outcome = excluded.outcome,
+                    failure_reason = excluded.failure_reason,
+                    success_condition = excluded.success_condition
+                """,
+                (
+                    call_id,
+                    started_at,
+                    ended_at,
+                    max(0, duration_seconds),
+                    cleaned_channel,
+                    cleaned_outcome,
+                    cleaned_reason,
+                    cleaned_condition,
+                    now,
+                ),
+            )
+            connection.commit()
+
+            connection.row_factory = sqlite3.Row
+            row = connection.execute(
+                "SELECT * FROM call_analytics WHERE call_id = ?", (call_id,)
+            ).fetchone()
+            return dict(row) if row else {}
+    except sqlite3.Error:
+        logger.exception("Unable to record call analytics for call_id=%s", call_id)
+        return {}
+
+
+def list_call_analytics(limit: int = 50) -> list[dict[str, Any]]:
+    """List recent call analytics records."""
+    try:
+        with _connection() as connection:
+            connection.row_factory = sqlite3.Row
+            rows = connection.execute(
+                "SELECT * FROM call_analytics ORDER BY id DESC LIMIT ?", (limit,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+    except sqlite3.Error:
+        logger.exception("Unable to list call analytics")
+        return []
+
+
+def get_analytics_summary() -> dict[str, Any]:
+    """Calculate summary statistics dynamically from call_analytics database."""
+    try:
+        with _connection() as connection:
+            total_calls = connection.execute(
+                "SELECT COUNT(*) FROM call_analytics"
+            ).fetchone()[0]
+            successful_calls = connection.execute(
+                "SELECT COUNT(*) FROM call_analytics WHERE outcome = 'SUCCESS'"
+            ).fetchone()[0]
+            failed_calls = connection.execute(
+                "SELECT COUNT(*) FROM call_analytics WHERE outcome = 'FAILED'"
+            ).fetchone()[0]
+
+            recent = list_call_analytics(limit=20)
+            success_rate = (
+                round((successful_calls / total_calls) * 100, 1)
+                if total_calls > 0
+                else 0.0
+            )
+
+            return {
+                "total_calls": total_calls,
+                "successful_calls": successful_calls,
+                "failed_calls": failed_calls,
+                "success_rate": success_rate,
+                "recent_calls": recent,
+            }
+    except sqlite3.Error:
+        logger.exception("Unable to get analytics summary")
+        return {
+            "total_calls": 0,
+            "successful_calls": 0,
+            "failed_calls": 0,
+            "success_rate": 0.0,
+            "recent_calls": [],
+        }
+
