@@ -2,7 +2,10 @@ import asyncio
 import json
 import logging
 import re
+<<<<<<< HEAD
 from datetime import UTC, datetime
+=======
+>>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
 from typing import Any
 
 from dotenv import load_dotenv
@@ -127,11 +130,14 @@ class Assistant(Agent):
         self._escalation_permission_pending = False
         self._escalation_permission_granted = False
         self._pending_escalation_reason: str | None = None
+<<<<<<< HEAD
 
         # Day 8 — call analytics tracking
         self._success_condition_met = False
         self._success_condition_reason: str | None = None
         self._call_started_at = datetime.now(UTC)
+=======
+>>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
 
         memory_context = ""
 
@@ -403,11 +409,15 @@ class Assistant(Agent):
             self._escalation_permission_pending = False
             self._escalation_permission_granted = False
         if duplicate:
+<<<<<<< HEAD
             self._success_condition_met = True
             self._success_condition_reason = "Human escalation (existing request)"
             return f"An open request already exists. Reference ID: {record['reference_id']}."
         self._success_condition_met = True
         self._success_condition_reason = "Human escalation created"
+=======
+            return f"An open request already exists. Reference ID: {record['reference_id']}."
+>>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
         return (
             f"Request created successfully. Reference ID: {record['reference_id']}. "
             "Tell the farmer human agricultural support will review it when available "

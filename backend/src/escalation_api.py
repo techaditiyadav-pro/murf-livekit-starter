@@ -27,6 +27,7 @@ class EscalationHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self) -> None:
+<<<<<<< HEAD
         path = urlparse(self.path).path
         if path == "/api/escalations":
             try:
@@ -61,6 +62,20 @@ class EscalationHandler(BaseHTTPRequestHandler):
                 )
         else:
             self._send(HTTPStatus.NOT_FOUND, {"error": "Not found"})
+=======
+        if urlparse(self.path).path != "/api/escalations":
+            self._send(HTTPStatus.NOT_FOUND, {"error": "Not found"})
+            return
+        try:
+            self._send(
+                HTTPStatus.OK, {"escalations": self.repository.list_escalations()}
+            )
+        except Exception:
+            logger.exception("Could not list escalations")
+            self._send(
+                HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Could not load requests"}
+            )
+>>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
 
     def do_PATCH(self) -> None:
         reference_id = urlparse(self.path).path.removeprefix("/api/escalations/")

@@ -53,6 +53,7 @@ class FarmerRepository:
                 )
                 """
             )
+<<<<<<< HEAD
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS call_analytics (
@@ -69,6 +70,8 @@ class FarmerRepository:
                 )
                 """
             )
+=======
+>>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
 
     @staticmethod
     def _sanitize_summary(value: str) -> str:
