@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Headset, Mic, ShieldAlert, Sprout } from 'lucide-react';
+import { BarChart3, Headset, Mic, ShieldAlert, Sprout } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const cards = [
@@ -35,6 +35,15 @@ export function WelcomeView({
                 className="h-9 rounded-lg border-[#287a3d] text-xs font-bold text-[#1f6a36] hover:bg-[#edf6df]"
               >
                 <Headset className="mr-1 size-3.5" /> Human Help
+              </Button>
+            </Link>
+            <Link href="/analytics">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-9 rounded-lg border-[#2563eb] text-xs font-bold text-[#2563eb] hover:bg-blue-50"
+              >
+                <BarChart3 className="mr-1 size-3.5" /> Analytics
               </Button>
             </Link>
             <Link href="/escalations">

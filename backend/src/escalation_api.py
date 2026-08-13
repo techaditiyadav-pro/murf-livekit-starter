@@ -27,18 +27,40 @@ class EscalationHandler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self) -> None:
-        if urlparse(self.path).path != "/api/escalations":
+        path = urlparse(self.path).path
+        if path == "/api/escalations":
+            try:
+                self._send(
+                    HTTPStatus.OK, {"escalations": self.repository.list_escalations()}
+                )
+            except Exception:
+                logger.exception("Could not list escalations")
+                self._send(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"error": "Could not load requests"},
+                )
+        elif path == "/api/analytics":
+            try:
+                summary = self.repository.get_analytics_summary()
+                recent = self.repository.get_recent_calls(20)
+                total = summary["total_calls"]
+                success_rate = (
+                    round(summary["successful_calls"] / total * 100, 1)
+                    if total > 0
+                    else 0.0
+                )
+                self._send(
+                    HTTPStatus.OK,
+                    {**summary, "success_rate": success_rate, "recent_calls": recent},
+                )
+            except Exception:
+                logger.exception("Could not load analytics")
+                self._send(
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                    {"error": "Could not load analytics"},
+                )
+        else:
             self._send(HTTPStatus.NOT_FOUND, {"error": "Not found"})
-            return
-        try:
-            self._send(
-                HTTPStatus.OK, {"escalations": self.repository.list_escalations()}
-            )
-        except Exception:
-            logger.exception("Could not list escalations")
-            self._send(
-                HTTPStatus.INTERNAL_SERVER_ERROR, {"error": "Could not load requests"}
-            )
 
     def do_PATCH(self) -> None:
         reference_id = urlparse(self.path).path.removeprefix("/api/escalations/")

@@ -2,6 +2,7 @@ import asyncio
 import json
 import logging
 import re
+from datetime import UTC, datetime
 from typing import Any
 
 from dotenv import load_dotenv
@@ -126,6 +127,11 @@ class Assistant(Agent):
         self._escalation_permission_pending = False
         self._escalation_permission_granted = False
         self._pending_escalation_reason: str | None = None
+
+        # Day 8 — call analytics tracking
+        self._success_condition_met = False
+        self._success_condition_reason: str | None = None
+        self._call_started_at = datetime.now(UTC)
 
         memory_context = ""
 
@@ -318,6 +324,8 @@ class Assistant(Agent):
                     ", ".join(saved_fields),
                 )
 
+        self._success_condition_met = True
+        self._success_condition_reason = "Farmer memory saved"
         return "The farmer information was saved successfully."
 
     @function_tool
@@ -337,6 +345,9 @@ class Assistant(Agent):
         result = await asyncio.to_thread(
             WeatherDataClient().get_weather_by_district, district
         )
+        if result.get("status") == "success":
+            self._success_condition_met = True
+            self._success_condition_reason = "Weather data provided"
         return json.dumps(result, ensure_ascii=False)
 
     @function_tool
@@ -392,7 +403,11 @@ class Assistant(Agent):
             self._escalation_permission_pending = False
             self._escalation_permission_granted = False
         if duplicate:
+            self._success_condition_met = True
+            self._success_condition_reason = "Human escalation (existing request)"
             return f"An open request already exists. Reference ID: {record['reference_id']}."
+        self._success_condition_met = True
+        self._success_condition_reason = "Human escalation created"
         return (
             f"Request created successfully. Reference ID: {record['reference_id']}. "
             "Tell the farmer human agricultural support will review it when available "
@@ -563,17 +578,49 @@ async def my_agent(ctx: JobContext):
             getattr(item, "text_content", None),
         )
 
+    is_outbound = getattr(ctx.job, "metadata", "") == "krishimitra-weather-alert"
+    assistant = Assistant(
+        user_id=user_id,
+        repository=repository,
+        farmer_memory=farmer_memory,
+        outbound_alert=is_outbound,
+        room_name=ctx.room.name,
+        livekit_api=ctx.api,
+    )
+
+    # Day 8 — record call outcome when participant disconnects
+    @ctx.room.on("participant_disconnected")
+    def on_participant_disconnected(participant) -> None:
+        logger.info(
+            "participant_disconnected identity=%s", participant.identity
+        )
+        try:
+            now = datetime.now(UTC)
+            duration = int((now - assistant._call_started_at).total_seconds())
+            channel = "sip" if is_outbound else "browser"
+            outcome = "SUCCESS" if assistant._success_condition_met else "FAILED"
+            failure_reason = (
+                None if outcome == "SUCCESS" else "Call ended before success condition was met"
+            )
+            repository.save_call_analytics(
+                call_id=ctx.room.name,
+                started_at=assistant._call_started_at.isoformat(),
+                ended_at=now.isoformat(),
+                duration_seconds=duration,
+                channel=channel,
+                outcome=outcome,
+                failure_reason=failure_reason,
+                success_condition=assistant._success_condition_reason,
+            )
+            logger.info(
+                "Call analytics saved: call_id=%s outcome=%s channel=%s duration=%ds",
+                ctx.room.name, outcome, channel, duration,
+            )
+        except Exception:
+            logger.exception("Failed to save call analytics")
+
     await session.start(
-        agent=Assistant(
-            user_id=user_id,
-            repository=repository,
-            farmer_memory=farmer_memory,
-            outbound_alert=(
-                getattr(ctx.job, "metadata", "") == "krishimitra-weather-alert"
-            ),
-            room_name=ctx.room.name,
-            livekit_api=ctx.api,
-        ),
+        agent=assistant,
         room=ctx.room,
         # Use LiveKit's direct room audio input. Do not insert a custom SIP
         # noise-cancellation processor before VAD and Deepgram STT.

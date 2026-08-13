@@ -53,6 +53,22 @@ class FarmerRepository:
                 )
                 """
             )
+            connection.execute(
+                """
+                CREATE TABLE IF NOT EXISTS call_analytics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    call_id TEXT NOT NULL UNIQUE,
+                    started_at TEXT NOT NULL,
+                    ended_at TEXT NOT NULL,
+                    duration_seconds INTEGER NOT NULL,
+                    channel TEXT NOT NULL DEFAULT 'browser',
+                    outcome TEXT NOT NULL CHECK (outcome IN ('SUCCESS', 'FAILED')),
+                    failure_reason TEXT,
+                    success_condition TEXT,
+                    created_at TEXT NOT NULL
+                )
+                """
+            )
 
     @staticmethod
     def _sanitize_summary(value: str) -> str:
@@ -249,3 +265,82 @@ class FarmerRepository:
             language_preference=None,
             facts={"outbound_calls_opted_out": True},
         )
+
+    # ------------------------------------------------------------------
+    # Call analytics (Day 8)
+    # ------------------------------------------------------------------
+
+    def save_call_analytics(
+        self,
+        *,
+        call_id: str,
+        started_at: str,
+        ended_at: str,
+        duration_seconds: int,
+        channel: str = "browser",
+        outcome: str,
+        failure_reason: str | None = None,
+        success_condition: str | None = None,
+    ) -> dict[str, Any]:
+        """Insert a call analytics record (idempotent via UNIQUE call_id)."""
+        if outcome not in {"SUCCESS", "FAILED"}:
+            raise ValueError("outcome must be SUCCESS or FAILED")
+        record = {
+            "call_id": call_id,
+            "started_at": started_at,
+            "ended_at": ended_at,
+            "duration_seconds": max(duration_seconds, 0),
+            "channel": channel,
+            "outcome": outcome,
+            "failure_reason": failure_reason,
+            "success_condition": success_condition,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+        with self._connect() as connection:
+            connection.execute(
+                """
+                INSERT OR IGNORE INTO call_analytics (
+                    call_id, started_at, ended_at, duration_seconds,
+                    channel, outcome, failure_reason, success_condition, created_at
+                ) VALUES (
+                    :call_id, :started_at, :ended_at, :duration_seconds,
+                    :channel, :outcome, :failure_reason, :success_condition, :created_at
+                )
+                """,
+                record,
+            )
+        return record
+
+    def get_analytics_summary(self) -> dict[str, int]:
+        """Return total, successful, and failed call counts from the database."""
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_calls,
+                    SUM(CASE WHEN outcome = 'SUCCESS' THEN 1 ELSE 0 END) AS successful_calls,
+                    SUM(CASE WHEN outcome = 'FAILED' THEN 1 ELSE 0 END) AS failed_calls
+                FROM call_analytics
+                """
+            ).fetchone()
+        return {
+            "total_calls": row["total_calls"] or 0,
+            "successful_calls": row["successful_calls"] or 0,
+            "failed_calls": row["failed_calls"] or 0,
+        }
+
+    def get_recent_calls(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Return recent call records with safe metadata only."""
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT call_id, started_at, ended_at, duration_seconds,
+                       channel, outcome, failure_reason, success_condition, created_at
+                FROM call_analytics
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
