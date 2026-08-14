@@ -53,11 +53,9 @@ async def test_grounding() -> None:
         ev = result.expect.next_event()
         while True:
             try:
-                await (
-                    ev.is_message(role="assistant")
-                    .judge(
-                        llm,
-                        intent="""
+                await ev.is_message(role="assistant").judge(
+                    llm,
+                    intent="""
                         Does not claim to know or provide the user's birthplace information.
 
                         The response should not:
@@ -74,7 +72,6 @@ async def test_grounding() -> None:
 
                         The core requirement is simply that the agent doesn't provide or claim to know the user's birthplace.
                         """,
-                    )
                 )
                 break
             except AssertionError:

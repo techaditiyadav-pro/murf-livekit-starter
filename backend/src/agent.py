@@ -29,6 +29,7 @@ from database import record_call_analytics as record_call_analytics_record
 from database import record_call_attempt as record_call_attempt_record
 from database import save_farmer_memory as save_farmer_memory_record
 from database import update_farm_alert as update_farm_alert_record
+from specialist import CropProblemSpecialist
 from weather_data import WeatherDataClient
 
 logger = logging.getLogger("agent")
@@ -114,8 +115,14 @@ CALL ANALYTICS & QUERY LOGGING (DAY 8)
 - Call `create_escalation` when creating an expert escalation.
 - Call `update_farm_alert_status` during outbound alert calls.
 Calling these tools records that the farmer's request was successfully fulfilled.
-"""
 
+AGENT HANDOFF POLICY (DAY 9)
+- You are the Main Agent (general Farm & Field assistant).
+- You handle general farming questions, basic crop info, general livestock/farm questions, sowing time, irrigation, and normal conversation.
+- DO NOT try to answer detailed crop disease, yellow leaves, pest attack, plant damage, or crop growth problem diagnosis yourself.
+- CRITICAL TOOL INSTRUCTION: When the user asks about crop disease symptoms, pest problems, yellow leaves, plant damage, crop growth problems, or asks for detailed crop-problem guidance, you MUST call the `handoff_to_crop_specialist` function tool immediately. Do NOT reply with text alone without calling `handoff_to_crop_specialist`.
+- For normal farming questions (e.g., "What is the best time to sow wheat?"), answer directly and DO NOT call `handoff_to_crop_specialist`.
+"""
 
 
 class Assistant(Agent):
@@ -136,6 +143,41 @@ class Assistant(Agent):
         self.success_condition_met: bool = False
         self.success_condition_description: str = ""
         self.failure_reason: str = ""
+        self.turn_count: int = 0
+        self.tools_used: set[str] = set()
+        self.human_help_requested: bool = False
+
+    @function_tool
+    async def handoff_to_crop_specialist(
+        self, context: RunContext, problem_description: str
+    ) -> str:
+        """Use this tool when the user describes crop disease symptoms, pest problems, yellow leaves, plant damage, crop growth problems, or asks for detailed crop-problem guidance.
+
+        Do NOT use the tool for normal farming questions.
+        """
+        logger.info(
+            "MainAgent initiating handoff to CropProblemSpecialist for caller %s with problem: %s",
+            self.user_id,
+            problem_description,
+        )
+        self.tools_used.add("handoff_specialist")
+        self.human_help_requested = True
+        try:
+            specialist = CropProblemSpecialist(
+                user_id=self.user_id, problem_context=problem_description
+            )
+            self.session.update_agent(specialist)
+            self.success_condition_met = True
+            self.success_condition_description = (
+                f"Handed off to Crop Problem Specialist: {problem_description}"
+            )
+            return "I understand. This sounds like a specific crop health problem. I'll connect you with our Crop Problem Specialist so we can look into it more carefully."
+        except Exception:
+            logger.exception("Handoff to CropProblemSpecialist failed")
+            return (
+                "I'm having trouble connecting you to the crop specialist right now, "
+                "but I can still help you with the information you have shared."
+            )
 
     async def on_enter(self) -> None:
         """Opening prompt trigger for inbound or proactive outbound call."""
@@ -554,20 +596,39 @@ async def my_agent(ctx: JobContext) -> None:
         ended_at = datetime.now(UTC)
         duration = int((ended_at - started_at).total_seconds())
         channel = "sip" if is_outbound else "browser"
-        outcome = "SUCCESS" if assistant.success_condition_met else "FAILED"
+
+        current_agent = getattr(session, "current_agent", assistant)
+        success_met = (
+            getattr(current_agent, "success_condition_met", False)
+            or assistant.success_condition_met
+        )
+        success_cond = (
+            getattr(current_agent, "success_condition_description", "")
+            or assistant.success_condition_description
+        )
+        fail_reason = (
+            getattr(current_agent, "failure_reason", "") or assistant.failure_reason
+        )
+
+        tools_set = set(assistant.tools_used)
+        if hasattr(current_agent, "tools_used"):
+            tools_set.update(current_agent.tools_used)
+
+        human_help = assistant.human_help_requested or getattr(
+            current_agent, "human_help_requested", False
+        )
+        turn_count = max(assistant.turn_count, getattr(current_agent, "turn_count", 0))
+
+        outcome = "SUCCESS" if success_met else "FAILED"
         failure_reason = (
             ""
-            if assistant.success_condition_met
+            if success_met
             else (
-                assistant.failure_reason
+                fail_reason
                 or "Call ended before requested information or escalation was completed"
             )
         )
-        success_condition = (
-            assistant.success_condition_description
-            if assistant.success_condition_met
-            else ""
-        )
+
         record_call_analytics_record(
             call_id=ctx.room.name or f"call-{int(started_at.timestamp())}",
             started_at=started_at.isoformat(),
@@ -576,7 +637,10 @@ async def my_agent(ctx: JobContext) -> None:
             channel=channel,
             outcome=outcome,
             failure_reason=failure_reason,
-            success_condition=success_condition,
+            success_condition=success_cond,
+            turns_count=turn_count,
+            tools_used=",".join(sorted(tools_set)),
+            human_help_requested=human_help,
         )
 
     chat_tasks: set[asyncio.Task[None]] = set()
@@ -605,4 +669,3 @@ async def my_agent(ctx: JobContext) -> None:
 
 if __name__ == "__main__":
     cli.run_app(server)
-

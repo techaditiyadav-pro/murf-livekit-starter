@@ -71,7 +71,9 @@ class WeatherDataClient:
             None,
         )
         if row is None:
-            logger.info("No local weather record found: district=%s", canonical_district)
+            logger.info(
+                "No local weather record found: district=%s", canonical_district
+            )
             return self._not_found_result(canonical_district)
 
         try:
@@ -91,7 +93,11 @@ class WeatherDataClient:
             logger.warning("Weather dataset has an invalid record")
             return self._unavailable_result()
 
-        logger.info("Local weather data received: district=%s, date=%s", result["district"], result["date"])
+        logger.info(
+            "Local weather data received: district=%s, date=%s",
+            result["district"],
+            result["date"],
+        )
         return result
 
     @staticmethod

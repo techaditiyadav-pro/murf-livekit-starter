@@ -67,6 +67,8 @@ def _connection() -> sqlite3.Connection:
         )
         """
     )
+    import contextlib
+
     connection.execute(
         """
         CREATE TABLE IF NOT EXISTS call_analytics (
@@ -79,10 +81,25 @@ def _connection() -> sqlite3.Connection:
             outcome TEXT NOT NULL,
             failure_reason TEXT DEFAULT '',
             success_condition TEXT DEFAULT '',
+            turns_count INTEGER DEFAULT 0,
+            tools_used TEXT DEFAULT '',
+            human_help_requested INTEGER DEFAULT 0,
             created_at TEXT NOT NULL
         )
         """
     )
+    with contextlib.suppress(sqlite3.OperationalError):
+        connection.execute(
+            "ALTER TABLE call_analytics ADD COLUMN turns_count INTEGER DEFAULT 0"
+        )
+    with contextlib.suppress(sqlite3.OperationalError):
+        connection.execute(
+            "ALTER TABLE call_analytics ADD COLUMN tools_used TEXT DEFAULT ''"
+        )
+    with contextlib.suppress(sqlite3.OperationalError):
+        connection.execute(
+            "ALTER TABLE call_analytics ADD COLUMN human_help_requested INTEGER DEFAULT 0"
+        )
     _seed_farm_alerts_if_empty(connection)
     return connection
 
@@ -543,8 +560,11 @@ def record_call_analytics(
     outcome: str,
     failure_reason: str = "",
     success_condition: str = "",
+    turns_count: int = 0,
+    tools_used: str = "",
+    human_help_requested: bool | int = False,
 ) -> dict[str, Any]:
-    """Record a completed call outcome (SUCCESS or FAILED) into call_analytics table."""
+    """Record a completed call outcome into call_analytics table."""
     now = datetime.now(UTC).isoformat()
     cleaned_outcome = outcome.upper()
     if cleaned_outcome not in {"SUCCESS", "FAILED"}:
@@ -556,6 +576,8 @@ def record_call_analytics(
 
     cleaned_reason = sanitize_text(failure_reason or "")
     cleaned_condition = sanitize_text(success_condition or "")
+    cleaned_tools = sanitize_text(tools_used or "")
+    is_human_help = 1 if human_help_requested else 0
 
     try:
         with _connection() as connection:
@@ -563,8 +585,9 @@ def record_call_analytics(
                 """
                 INSERT INTO call_analytics (
                     call_id, started_at, ended_at, duration_seconds,
-                    channel, outcome, failure_reason, success_condition, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    channel, outcome, failure_reason, success_condition,
+                    turns_count, tools_used, human_help_requested, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(call_id) DO UPDATE SET
                     started_at = excluded.started_at,
                     ended_at = excluded.ended_at,
@@ -572,7 +595,10 @@ def record_call_analytics(
                     channel = excluded.channel,
                     outcome = excluded.outcome,
                     failure_reason = excluded.failure_reason,
-                    success_condition = excluded.success_condition
+                    success_condition = excluded.success_condition,
+                    turns_count = excluded.turns_count,
+                    tools_used = excluded.tools_used,
+                    human_help_requested = excluded.human_help_requested
                 """,
                 (
                     call_id,
@@ -583,6 +609,9 @@ def record_call_analytics(
                     cleaned_outcome,
                     cleaned_reason,
                     cleaned_condition,
+                    max(0, turns_count),
+                    cleaned_tools,
+                    is_human_help,
                     now,
                 ),
             )
@@ -626,7 +655,24 @@ def get_analytics_summary() -> dict[str, Any]:
                 "SELECT COUNT(*) FROM call_analytics WHERE outcome = 'FAILED'"
             ).fetchone()[0]
 
-            recent = list_call_analytics(limit=20)
+            avg_duration_row = connection.execute(
+                "SELECT AVG(duration_seconds) FROM call_analytics"
+            ).fetchone()
+            avg_duration = (
+                round(avg_duration_row[0] or 0.0, 1) if total_calls > 0 else 0.0
+            )
+
+            avg_turns_row = connection.execute(
+                "SELECT AVG(turns_count) FROM call_analytics"
+            ).fetchone()
+            avg_turns = round(avg_turns_row[0] or 0.0, 1) if total_calls > 0 else 0.0
+
+            human_help_row = connection.execute(
+                "SELECT COUNT(*) FROM call_analytics WHERE human_help_requested = 1 OR success_condition LIKE '%Human help%' OR failure_reason LIKE '%escalat%'"
+            ).fetchone()
+            human_help_count = human_help_row[0] if total_calls > 0 else 0
+
+            recent = list_call_analytics(limit=50)
             success_rate = (
                 round((successful_calls / total_calls) * 100, 1)
                 if total_calls > 0
@@ -638,6 +684,9 @@ def get_analytics_summary() -> dict[str, Any]:
                 "successful_calls": successful_calls,
                 "failed_calls": failed_calls,
                 "success_rate": success_rate,
+                "avg_duration_seconds": avg_duration,
+                "avg_turns": avg_turns,
+                "human_help_count": human_help_count,
                 "recent_calls": recent,
             }
     except sqlite3.Error:
@@ -647,6 +696,8 @@ def get_analytics_summary() -> dict[str, Any]:
             "successful_calls": 0,
             "failed_calls": 0,
             "success_rate": 0.0,
+            "avg_duration_seconds": 0.0,
+            "avg_turns": 0.0,
+            "human_help_count": 0,
             "recent_calls": [],
         }
-
