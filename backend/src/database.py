@@ -53,7 +53,6 @@ class FarmerRepository:
                 )
                 """
             )
-<<<<<<< HEAD
             connection.execute(
                 """
                 CREATE TABLE IF NOT EXISTS call_analytics (
@@ -63,15 +62,39 @@ class FarmerRepository:
                     ended_at TEXT NOT NULL,
                     duration_seconds INTEGER NOT NULL,
                     channel TEXT NOT NULL DEFAULT 'browser',
-                    outcome TEXT NOT NULL CHECK (outcome IN ('SUCCESS', 'FAILED')),
+                    outcome TEXT NOT NULL,
+                    turns_count INTEGER NOT NULL DEFAULT 0,
+                    user_turns INTEGER NOT NULL DEFAULT 0,
+                    tools_used TEXT NOT NULL DEFAULT '[]',
+                    used_search INTEGER NOT NULL DEFAULT 0,
+                    human_help_requested INTEGER NOT NULL DEFAULT 0,
+                    language TEXT,
                     failure_reason TEXT,
                     success_condition TEXT,
                     created_at TEXT NOT NULL
                 )
                 """
             )
-=======
->>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
+            # Automatic column migration for existing databases
+            existing_cols = {
+                row["name"]
+                for row in connection.execute(
+                    "PRAGMA table_info(call_analytics)"
+                ).fetchall()
+            }
+            columns_to_add = [
+                ("turns_count", "INTEGER NOT NULL DEFAULT 0"),
+                ("user_turns", "INTEGER NOT NULL DEFAULT 0"),
+                ("tools_used", "TEXT NOT NULL DEFAULT '[]'"),
+                ("used_search", "INTEGER NOT NULL DEFAULT 0"),
+                ("human_help_requested", "INTEGER NOT NULL DEFAULT 0"),
+                ("language", "TEXT"),
+            ]
+            for col_name, col_def in columns_to_add:
+                if col_name not in existing_cols:
+                    connection.execute(
+                        f"ALTER TABLE call_analytics ADD COLUMN {col_name} {col_def}"
+                    )
 
     @staticmethod
     def _sanitize_summary(value: str) -> str:
@@ -281,13 +304,22 @@ class FarmerRepository:
         ended_at: str,
         duration_seconds: int,
         channel: str = "browser",
-        outcome: str,
+        outcome: str = "SUCCESS",
+        turns_count: int = 0,
+        user_turns: int = 0,
+        tools_used: list[str] | str = "[]",
+        used_search: bool = False,
+        human_help_requested: bool = False,
+        language: str | None = None,
         failure_reason: str | None = None,
         success_condition: str | None = None,
     ) -> dict[str, Any]:
         """Insert a call analytics record (idempotent via UNIQUE call_id)."""
-        if outcome not in {"SUCCESS", "FAILED"}:
-            raise ValueError("outcome must be SUCCESS or FAILED")
+        tools_json = (
+            json.dumps(tools_used, ensure_ascii=False)
+            if isinstance(tools_used, list)
+            else str(tools_used or "[]")
+        )
         record = {
             "call_id": call_id,
             "started_at": started_at,
@@ -295,6 +327,12 @@ class FarmerRepository:
             "duration_seconds": max(duration_seconds, 0),
             "channel": channel,
             "outcome": outcome,
+            "turns_count": max(turns_count, 0),
+            "user_turns": max(user_turns, 0),
+            "tools_used": tools_json,
+            "used_search": 1 if used_search else 0,
+            "human_help_requested": 1 if human_help_requested else 0,
+            "language": language,
             "failure_reason": failure_reason,
             "success_condition": success_condition,
             "created_at": datetime.now(UTC).isoformat(),
@@ -304,46 +342,80 @@ class FarmerRepository:
                 """
                 INSERT OR IGNORE INTO call_analytics (
                     call_id, started_at, ended_at, duration_seconds,
-                    channel, outcome, failure_reason, success_condition, created_at
+                    channel, outcome, turns_count, user_turns, tools_used,
+                    used_search, human_help_requested, language,
+                    failure_reason, success_condition, created_at
                 ) VALUES (
                     :call_id, :started_at, :ended_at, :duration_seconds,
-                    :channel, :outcome, :failure_reason, :success_condition, :created_at
+                    :channel, :outcome, :turns_count, :user_turns, :tools_used,
+                    :used_search, :human_help_requested, :language,
+                    :failure_reason, :success_condition, :created_at
                 )
                 """,
                 record,
             )
         return record
 
-    def get_analytics_summary(self) -> dict[str, int]:
-        """Return total, successful, and failed call counts from the database."""
+    def get_analytics_summary(self) -> dict[str, Any]:
+        """Return aggregated KPIs and performance metrics from call_analytics."""
         with self._connect() as connection:
             row = connection.execute(
                 """
                 SELECT
                     COUNT(*) AS total_calls,
-                    SUM(CASE WHEN outcome = 'SUCCESS' THEN 1 ELSE 0 END) AS successful_calls,
-                    SUM(CASE WHEN outcome = 'FAILED' THEN 1 ELSE 0 END) AS failed_calls
+                    SUM(CASE WHEN outcome IN ('SUCCESS', 'COMPLETED', 'HUMAN_HELP') THEN 1 ELSE 0 END) AS successful_calls,
+                    SUM(CASE WHEN outcome = 'FAILED' THEN 1 ELSE 0 END) AS failed_calls,
+                    SUM(CASE WHEN human_help_requested = 1 OR outcome = 'HUMAN_HELP' THEN 1 ELSE 0 END) AS human_help_calls,
+                    SUM(CASE WHEN used_search = 1 OR (tools_used IS NOT NULL AND tools_used != '[]' AND tools_used != '') THEN 1 ELSE 0 END) AS tool_usage_calls,
+                    AVG(duration_seconds) AS avg_duration_seconds,
+                    AVG(turns_count) AS avg_turns,
+                    AVG(user_turns) AS avg_user_turns
                 FROM call_analytics
                 """
             ).fetchone()
+
+        total = row["total_calls"] or 0
+        successful = row["successful_calls"] or 0
+        failed = row["failed_calls"] or 0
+        human_help = row["human_help_calls"] or 0
+        tool_usage = row["tool_usage_calls"] or 0
+        avg_dur = round(float(row["avg_duration_seconds"] or 0), 1)
+        avg_turns = round(float(row["avg_turns"] or row["avg_user_turns"] or 0), 1)
+        success_rate = round((successful / total) * 100, 1) if total > 0 else 0.0
+
         return {
-            "total_calls": row["total_calls"] or 0,
-            "successful_calls": row["successful_calls"] or 0,
-            "failed_calls": row["failed_calls"] or 0,
+            "total_calls": total,
+            "successful_calls": successful,
+            "failed_calls": failed,
+            "human_help_calls": human_help,
+            "tool_usage_calls": tool_usage,
+            "avg_duration_seconds": avg_dur,
+            "avg_turns": avg_turns,
+            "success_rate": success_rate,
         }
 
     def get_recent_calls(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Return recent call records with safe metadata only."""
+        """Return recent call records with parsed metadata."""
         with self._connect() as connection:
             rows = connection.execute(
                 """
                 SELECT call_id, started_at, ended_at, duration_seconds,
-                       channel, outcome, failure_reason, success_condition, created_at
+                       channel, outcome, turns_count, user_turns, tools_used,
+                       used_search, human_help_requested, language,
+                       failure_reason, success_condition, created_at
                 FROM call_analytics
                 ORDER BY created_at DESC
                 LIMIT ?
                 """,
                 (limit,),
             ).fetchall()
-        return [dict(row) for row in rows]
 
+        results = []
+        for r in rows:
+            d = dict(r)
+            try:
+                d["tools_used"] = json.loads(d.get("tools_used") or "[]")
+            except Exception:
+                d["tools_used"] = []
+            results.append(d)
+        return results

@@ -2,10 +2,7 @@ import asyncio
 import json
 import logging
 import re
-<<<<<<< HEAD
 from datetime import UTC, datetime
-=======
->>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
 from typing import Any
 
 from dotenv import load_dotenv
@@ -25,6 +22,7 @@ from livekit.agents import (
 from livekit.plugins import deepgram, google, murf, silero
 from livekit.plugins.turn_detector.multilingual import MultilingualModel
 
+from crop_specialist import CropSpecialist
 from database import FarmerRepository
 from escalation_api import start_escalation_api
 from market_data import MarketDataClient
@@ -101,6 +99,20 @@ KRISHIMITRA HUMAN ESCALATION POLICY:
   when available, without promising a response time.
 - Normal crop-care questions remain normal assistance and must not be escalated.
 
+DAY 9 — AGENT HANDOFF POLICY:
+- You have a handoff_to_crop_specialist tool available.
+- When the user describes specific crop disease symptoms, pest problems,
+  yellowing/browning/wilting leaves, plant damage, crop growth abnormalities,
+  or asks for detailed crop-problem diagnosis, you MUST use the
+  handoff_to_crop_specialist tool to transfer the conversation.
+- Before calling the tool, briefly tell the farmer:
+  "I'll connect you to our crop specialist who can help with this."
+- Pass the user's exact problem description as the context parameter.
+- Do NOT attempt to diagnose crop diseases, identify pests, or provide
+  detailed crop-problem guidance yourself. That is the specialist's job.
+- For normal farming questions (sowing times, irrigation, soil prep, general
+  crop info, livestock, fertilizer basics), answer directly without handoff.
+
 For an outbound demo weather-alert call, clearly say that you are KrishiMitra AI,
 an automated agricultural assistant, and that the alert uses local/demo weather
 data rather than live weather. If the farmer says stop, band kijiye, call mat
@@ -130,14 +142,16 @@ class Assistant(Agent):
         self._escalation_permission_pending = False
         self._escalation_permission_granted = False
         self._pending_escalation_reason: str | None = None
-<<<<<<< HEAD
-
         # Day 8 — call analytics tracking
         self._success_condition_met = False
         self._success_condition_reason: str | None = None
         self._call_started_at = datetime.now(UTC)
-=======
->>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
+        self._user_turns = 0
+        self._assistant_turns = 0
+        self._tools_used: list[str] = []
+        self._used_search = False
+        self._human_help_requested = False
+        self._language: str | None = None
 
         memory_context = ""
 
@@ -213,6 +227,10 @@ class Assistant(Agent):
 
     async def on_user_turn_completed(self, turn_ctx, new_message) -> None:
         """Make explicit outbound-call opt-outs non-optional for the LLM."""
+        self._user_turns += 1
+        if not self._success_condition_met:
+            self._success_condition_met = True
+            self._success_condition_reason = "Conversation completed successfully"
         text = new_message.text_content or ""
         if self.outbound_alert and is_opt_out_request(new_message.text_content or ""):
             new_message.content.append(
@@ -273,6 +291,8 @@ class Assistant(Agent):
         context: RunContext,
     ) -> str:
         """Look up persistent memory for the current farmer."""
+        if "lookup_farmer" not in self._tools_used:
+            self._tools_used.append("lookup_farmer")
 
         logger.info("Looking up farmer memory for user_id=%s", self.user_id)
 
@@ -305,6 +325,8 @@ class Assistant(Agent):
         """
         Save farmer information only after explicit consent.
         """
+        if "save_farmer_memory" not in self._tools_used:
+            self._tools_used.append("save_farmer_memory")
 
         logger.info("Saving farmer memory for user_id=%s", self.user_id)
 
@@ -348,6 +370,9 @@ class Assistant(Agent):
         for a specific district. This is LOCAL/DEMO DATA, never live weather.
         If the district is absent, ask which district before calling this tool.
         """
+        if "get_weather_by_district" not in self._tools_used:
+            self._tools_used.append("get_weather_by_district")
+        self._used_search = True
         result = await asyncio.to_thread(
             WeatherDataClient().get_weather_by_district, district
         )
@@ -359,6 +384,9 @@ class Assistant(Agent):
     @function_tool
     async def get_market_price(self, context: RunContext, crop: str, mandi: str) -> str:
         """Check a verified current mandi price. Never use it to guess a price."""
+        if "get_market_price" not in self._tools_used:
+            self._tools_used.append("get_market_price")
+        self._used_search = True
         result = await asyncio.to_thread(
             MarketDataClient().get_market_price, crop, mandi
         )
@@ -378,6 +406,9 @@ class Assistant(Agent):
         preferred_follow_up_method: str | None = None,
     ) -> str:
         """Create a human-support request only after the farmer explicitly agrees."""
+        if "create_escalation" not in self._tools_used:
+            self._tools_used.append("create_escalation")
+        self._human_help_requested = True
         if not self._escalation_permission_granted:
             return (
                 "Permission has not been confirmed. Do not create an escalation. "
@@ -409,15 +440,11 @@ class Assistant(Agent):
             self._escalation_permission_pending = False
             self._escalation_permission_granted = False
         if duplicate:
-<<<<<<< HEAD
             self._success_condition_met = True
             self._success_condition_reason = "Human escalation (existing request)"
             return f"An open request already exists. Reference ID: {record['reference_id']}."
         self._success_condition_met = True
         self._success_condition_reason = "Human escalation created"
-=======
-            return f"An open request already exists. Reference ID: {record['reference_id']}."
->>>>>>> 2a9f9107e479b9131be5e3a35ba520a32f06820c
         return (
             f"Request created successfully. Reference ID: {record['reference_id']}. "
             "Tell the farmer human agricultural support will review it when available "
@@ -427,6 +454,8 @@ class Assistant(Agent):
     @function_tool
     async def opt_out_of_outbound_calls(self, context: RunContext) -> str:
         """Record an explicit request to stop all future outbound alert calls."""
+        if "opt_out_of_outbound_calls" not in self._tools_used:
+            self._tools_used.append("opt_out_of_outbound_calls")
         logger.info("Recording outbound call opt-out for user_id=%s", self.user_id)
         try:
             self.repository.opt_out_of_outbound_calls(self.user_id)
@@ -440,6 +469,54 @@ class Assistant(Agent):
             "Opt-out saved. Give the short confirmation now; the call will end "
             "immediately after it finishes."
         )
+
+    @function_tool
+    async def handoff_to_crop_specialist(
+        self,
+        context: RunContext,
+        problem_context: str,
+    ) -> str:
+        """Transfer the conversation to the Crop Problem Specialist agent.
+
+        Use this tool ONLY when the user describes crop disease symptoms, pest
+        problems, yellowing/browning/wilting leaves, plant damage, crop growth
+        abnormalities, or asks for detailed crop-problem diagnosis or guidance.
+
+        Do NOT use this tool for normal farming questions like sowing times,
+        irrigation schedules, soil preparation, general crop information,
+        livestock questions, or basic fertilizer advice.
+
+        Args:
+            problem_context: The user's exact problem description and any
+                relevant details already collected during the conversation.
+                This is passed to the specialist so the farmer does not
+                have to repeat themselves.
+        """
+        if "handoff_to_crop_specialist" not in self._tools_used:
+            self._tools_used.append("handoff_to_crop_specialist")
+        logger.info(
+            "Handoff to crop specialist requested. Context: %s",
+            problem_context[:200],
+        )
+        try:
+            specialist = CropSpecialist(
+                handoff_context=problem_context,
+                farmer_memory=self.farmer_memory,
+            )
+            await self.session.update_agent(specialist)
+            self._success_condition_met = True
+            self._success_condition_reason = "Handoff to crop specialist"
+            return (
+                "Handoff successful. The Crop Problem Specialist has taken over "
+                "the conversation. Do not continue responding — the specialist "
+                "will handle it from here."
+            )
+        except Exception:
+            logger.exception("Handoff to crop specialist failed")
+            return (
+                "I'm having trouble connecting you to the crop specialist right now, "
+                "but I can still help you with the information you have shared."
+            )
 
     async def _end_outbound_call_after_confirmation(self) -> None:
         """Leave enough time for the confirmation TTS before ending the SIP call."""
@@ -560,6 +637,8 @@ async def my_agent(ctx: JobContext):
             event.language,
             event.transcript,
         )
+        if event.language:
+            assistant._language = str(event.language)
         if event.is_final:
             logger.info("USER TRANSCRIPT: %s", event.transcript)
 
@@ -582,9 +661,12 @@ async def my_agent(ctx: JobContext):
     @session.on("conversation_item_added")
     def on_conversation_item_added(event) -> None:
         item = event.item
+        role = getattr(item, "role", "unknown")
+        if role == "assistant":
+            assistant._assistant_turns += 1
         logger.info(
             "conversation_item_added role=%s text=%s",
-            getattr(item, "role", "unknown"),
+            role,
             getattr(item, "text_content", None),
         )
 
@@ -598,19 +680,31 @@ async def my_agent(ctx: JobContext):
         livekit_api=ctx.api,
     )
 
-    # Day 8 — record call outcome when participant disconnects
+    # Day 8 — record comprehensive call analytics when participant disconnects
     @ctx.room.on("participant_disconnected")
     def on_participant_disconnected(participant) -> None:
-        logger.info(
-            "participant_disconnected identity=%s", participant.identity
-        )
+        logger.info("participant_disconnected identity=%s", participant.identity)
         try:
             now = datetime.now(UTC)
             duration = int((now - assistant._call_started_at).total_seconds())
             channel = "sip" if is_outbound else "browser"
-            outcome = "SUCCESS" if assistant._success_condition_met else "FAILED"
+            total_turns = assistant._user_turns + assistant._assistant_turns
+            outcome = (
+                "HUMAN_HELP"
+                if assistant._human_help_requested
+                else (
+                    "SUCCESS"
+                    if (assistant._success_condition_met or assistant._user_turns > 0)
+                    else "FAILED"
+                )
+            )
             failure_reason = (
-                None if outcome == "SUCCESS" else "Call ended before success condition was met"
+                None
+                if outcome in ("SUCCESS", "HUMAN_HELP")
+                else "Call ended before conversation or success condition was met"
+            )
+            success_condition = assistant._success_condition_reason or (
+                "General conversation" if assistant._user_turns > 0 else None
             )
             repository.save_call_analytics(
                 call_id=ctx.room.name,
@@ -619,12 +713,22 @@ async def my_agent(ctx: JobContext):
                 duration_seconds=duration,
                 channel=channel,
                 outcome=outcome,
+                turns_count=total_turns,
+                user_turns=assistant._user_turns,
+                tools_used=assistant._tools_used,
+                used_search=assistant._used_search,
+                human_help_requested=assistant._human_help_requested,
+                language=assistant._language,
                 failure_reason=failure_reason,
-                success_condition=assistant._success_condition_reason,
+                success_condition=success_condition,
             )
             logger.info(
-                "Call analytics saved: call_id=%s outcome=%s channel=%s duration=%ds",
-                ctx.room.name, outcome, channel, duration,
+                "Call analytics saved: call_id=%s outcome=%s turns=%d tools=%s duration=%ds",
+                ctx.room.name,
+                outcome,
+                total_turns,
+                assistant._tools_used,
+                duration,
             )
         except Exception:
             logger.exception("Failed to save call analytics")

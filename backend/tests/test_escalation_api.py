@@ -77,4 +77,3 @@ def test_escalation_api_endpoints(tmp_path, monkeypatch) -> None:
         assert created["reference_id"].startswith("KM-2026-")
         assert created["reason"] == "OTHER"
         assert created["what_agent_checked"] == "User requested human support directly."
-
